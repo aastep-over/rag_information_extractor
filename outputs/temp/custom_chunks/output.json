@@ -1,0 +1,164 @@
+{
+    "2kind srl": {
+        "INFO_GENERALI": {
+            "output": {
+                "Durata": {
+                    "durata_dell_azienda": "fino al trentuno dicembre duemilasessanta"
+                }
+            },
+            "retrieved_docs": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        3,
+                        0,
+                        1,
+                        23,
+                        4,
+                        18,
+                        8,
+                        24
+                    ]
+                }
+            },
+            "re_ranked_docs": {
+                "Durata": {
+                    "parents": [
+                        0,
+                        3
+                    ],
+                    "children": []
+                }
+            },
+            "retrieved_docs_texts": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        "Art.3.- La ... prorogata.",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.27.- P ... nte M.U.I.",
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.18.- L ... la delega.",
+                        "Art.10.- L ... ce civile.",
+                        "Art.23.- G ... ONI FINALI"
+                    ]
+                }
+            },
+            "re_ranked_docs_texts": {
+                "Durata": {
+                    "parents": [
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.3.- La ... prorogata."
+                    ],
+                    "children": []
+                }
+            },
+            "rag_qa": {
+                "Durata": {
+                    "Q": "Qual è la durata della società (fino a quale data)? Nome della società: 2KIND SRL",
+                    "A": "La durata della società è fissata fino al trentuno dicembre duemilasessanta."
+                }
+            },
+            "run_times": {
+                "Durata": {
+                    "analyze_query": "38.936 s",
+                    "retrieve": "0.207 s",
+                    "pruning": "0.00 s",
+                    "generate": "366.402 s",
+                    "re_ranking": "15.974 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "851.36 s",
+                    "extract_sub_module": "429.831 s"
+                }
+            },
+            "optimized_query": {
+                "Durata": {
+                    "query": "durata societa' fino a quando data",
+                    "azienda": "2kind srl"
+                }
+            }
+        }
+    },
+    "cnc world s.r.l.": {
+        "INFO_GENERALI": {
+            "output": {
+                "Durata": {
+                    "durata_dell_azienda": "Non specificata precisamente, può essere sciolta al ricorrere di una delle ipotesi previste dall'art. 2484, comma 1, numeri da 1 a 6, del codice civile."
+                }
+            },
+            "retrieved_docs": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        32,
+                        50,
+                        47,
+                        71,
+                        67,
+                        29,
+                        34,
+                        55
+                    ]
+                }
+            },
+            "re_ranked_docs": {
+                "Durata": {
+                    "parents": [
+                        27,
+                        48
+                    ],
+                    "children": []
+                }
+            },
+            "retrieved_docs_texts": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        "valutazion ... biamento\n1",
+                        "dall’organ ... ione della",
+                        "audio e vi ... llimitata)",
+                        "al preside ... o di posta",
+                        "2\niscritto ... trazione\n3",
+                        "Nell’ipote ... istrativo.",
+                        "Capitale s ... no di essi",
+                        "Allegato \" ... formativi,"
+                    ]
+                }
+            },
+            "re_ranked_docs_texts": {
+                "Durata": {
+                    "parents": [
+                        "Allegato \" ...  mobiliari",
+                        "al preside ... o di posta"
+                    ],
+                    "children": []
+                }
+            },
+            "rag_qa": {
+                "Durata": {
+                    "Q": "Qual è la durata della società (fino a quale data)? Nome della società: CNC WORLD S.R.L.",
+                    "A": "La durata della società è determinata dall'art. 4 del statuto, che non specifica una durata precisa, ma indica che la società può essere sciogliera al ricorrere di una delle ipotesi previste dall'art. 2484, comma 1, numeri da 1 a 6, del codice civile."
+                }
+            },
+            "run_times": {
+                "Durata": {
+                    "analyze_query": "38.936 s",
+                    "retrieve": "0.207 s",
+                    "pruning": "0.00 s",
+                    "generate": "366.402 s",
+                    "re_ranking": "15.974 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "851.36 s",
+                    "extract_sub_module": "429.831 s"
+                }
+            },
+            "optimized_query": {
+                "Durata": {
+                    "query": "durata societa' fino a quando data",
+                    "azienda": "cnc world s.r.l."
+                }
+            }
+        }
+    }
+}

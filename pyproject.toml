@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-info-extractor"
+version = "0.0.0"
+description = "RAG information extractor"
+authors = [{name="Your Name", email="you@unipd.it"}]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "ruff", "isort", "pre-commit"]

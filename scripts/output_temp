@@ -1,0 +1,157 @@
+## OUTPUT FOR: rag_pipeline.py
+
+USER QUERY: Agli amministratori spetta il rimborso delle spese? Informazione richiesto per la società: 2KIND SRL
+
+Optimied Query: query='spese aziendali rimborso' azienda='2kind srl'
+
+LLM ANSWER: Gli amministratori della società 2KIND SRL spettano il rimborso delle spese sostenute in ragione del loro ufficio, oltre a un compenso eventuale determinato dai soci.
+
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+RETRIEVER DOCs...
+
+Retrieved doc ids: {'parents': [], 'children': [17, 22, 6, 0, 20, 24, 23, 26]}
+
+VECTOR STORE chunks: 
+
+-------------------------------------------------- CHUNK 0 --------------------------------------------------
+Allegato "B" dell'atto a Racc.2963
+S T A T U T O
+DENOMINAZIONE - SEDE - DURATA - OGGETTO
+
+
+-------------------------------------------------- CHUNK 1 --------------------------------------------------
+Art.4 - La società ha per oggetto:
+- l’ideazione, progettazione, sviluppo e fornitura di servizi di informatica e
+comunicazione per imprese, pubblica amministrazione e  privati;
+- l’acquisto, la gestione, la valorizzazione, la ristrutturazione, di immobili e
+patrimoni immobiliari.
+ In particolare, la società si occupa di creare e gestire sistemi informatici e
+di comunicazione personalizzati, soluzioni di networking e sicurezza
+informatica, applicazioni software, sviluppo di siti web, servizi di hosting e
+cloud computing.
+ La società offre inoltre servizi di realizzazione di piattaforme di
+microservizi, la creazione e la commercializzazione di applicativi, strumenti
+tecnologici, apparati hardware volti allo sviluppo e alla gestione di ambienti
+digitali innovativi.
+ La commercializzazione potrà avvenire sia con vendita diretta, sia con
+concessione di Licenze d’Uso, sia tramite licenze con noleggio a tempo o
+fornire servizi in Cloud nelle modalità Infrastructure as a Service, Platform
+as a Service, Software as a Service; la creazione, la gestione e la
+commercializzazione di piattaforme digitali multi-sided, in ogni loro forma;
+la creazione, la gestione e la commercializzazione di soluzioni digitali in
+ogni loro forma tra cui in modo esemplificativo ma non esaustivo:
+implementazione e creazione di tecnologie di Machine Learning,
+Intelligenza Artificiale, Internet delle Cose (IOT), Analisi Predittiva, Realtà
+Virtuale, Realtà Aumentata, Reti Neurali, Data Mining, Big Data, Reverse
+Engineering, 
+Clustering, 
+Reti 
+di 
+Trasmissione 
+Dati 
+Innovative;
+l’organizzazione aziendale, l’analisi e la programmazione di procedure e/o
+di modelli di business per la creazione e la gestione di aziende digitali,
+dell’industria 4.0; la creazione, l'acquisizione, la cessione e lo sfruttamento
+commerciale in qualsivoglia forma di software di proprietà o acquisito in
+licenza d'uso; lo sfruttamento economico sotto qualsiasi forma di tecnologie,
+
+
+-------------------------------------------------- CHUNK 2 --------------------------------------------------
+Art.7. - La società ha la facoltà di raccogliere presso i soci, nel rispetto
+delle leggi e dei regolamenti vigenti, i fondi necessari per il conseguimento
+dell'oggetto sociale secondo modalità che non configurino raccolta di
+risparmio tra il pubblico. Gli eventuali finanziamenti saranno fruttiferi o
+infruttiferi di interessi secondo quanto verrà deciso dai soci. I finanziamenti,
+con diritto alla restituzione delle somme versate, non potranno che essere
+volontari e comunque dovranno avvenire nel rispetto delle disposizioni
+contenute nelle leggi e nei regolamenti vigenti. Per il rimborso dei
+finanziamenti effettuati dai soci si applica l'articolo 2467 cod civ.
+ASSEMBLEA-DECISIONI DEI SOCI
+
+
+-------------------------------------------------- CHUNK 3 --------------------------------------------------
+Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese
+sostenute in ragione del loro ufficio, un compenso eventuale determinato dai
+soci.
+
+
+-------------------------------------------------- CHUNK 4 --------------------------------------------------
+Art.21.- I soci con apposita decisione nominano un organo di controllo in
+persona di un Sindaco Unico o di un Revisore legale dei conti ai sensi
+dell'art.2477 c.c., ai quali competono il controllo di gestione e il controllo
+legale dei conti.
+ Il compenso annuale del Sindaco Unico ovvero del Revisore legale è
+determinato in conformità con le tariffe professionali in vigore al momento
+della nomina.
+ La nomina dell'organo di controllo è obbligatoria nei casi previsti dalla
+legge.
+ESERCIZI SOCIALI BILANCIO E UTILI
+
+
+-------------------------------------------------- CHUNK 5 --------------------------------------------------
+Art.23.- Gli utili netti, in base a delibera assembleare, sono ripartiti come
+------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------segue:
+- il cinque per cento (5%) sarà destinato alla riserva legale fino al
+raggiungimento dell'importo pari al venti per cento del capitale sociale;
+- la rimanenza è ripartita fra i soci in proporzione delle rispettive quote di
+capitale, salvo che essi non decidano diversamente.
+SCIOGLIMENTO LIQUIDAZIONE E DISPOSIZIONI FINALI
+
+
+-------------------------------------------------- CHUNK 6 --------------------------------------------------
+Art.25.- Può essere escluso il socio che svolga, individualmente o tramite
+partecipazioni in altra società, attività concorrente con quella della presente
+società ovvero che sia assoggettato a procedura concorsuale. L'esclusione è
+decisa con il voto favorevole di tanti soci che rappresentino i due terzi del
+capitale sociale escludendo dal computo la partecipazione del socio da
+escludere.
+ Il socio escluso ha diritto di ottenere il rimborso della propria
+partecipazione in proporzione al  patrimonio sociale.
+
+
+-------------------------------------------------- CHUNK 7 --------------------------------------------------
+Art.27.- Per quanto non è espressamente contemplato nel presente statuto
+si fa riferimento alle disposizioni contenute nel Codice Civile e nelle altre
+leggi.
+F.to: FILIPPO GENTILE - PAOLO RAITI
+------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------ Copia su supporto informatico conforme all'originale docu-
+mento su supporto cartaceo, ai sensi dell'art.23 del D.Lgs.
+82/2005, che si trasmette ad uso Registro Imprese. Imposta
+di bollo assolta ai sensi del D.M. 22/2/2007 mediante M.U.I.
+
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+DOC STORE chunks: 
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+RE-RANKED DOCs...
+
+Re-Ranked doc ids: {'parents': [19, 7], 'children': []}
+
+VECTOR STORE chunks: 
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+DOC STORE chunks: 
+
+-------------------------------------------------- CHUNK 0 --------------------------------------------------
+Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese
+sostenute in ragione del loro ufficio, un compenso eventuale determinato dai
+soci.
+
+
+-------------------------------------------------- CHUNK 1 --------------------------------------------------
+Art.7. - La società ha la facoltà di raccogliere presso i soci, nel rispetto
+delle leggi e dei regolamenti vigenti, i fondi necessari per il conseguimento
+dell'oggetto sociale secondo modalità che non configurino raccolta di
+risparmio tra il pubblico. Gli eventuali finanziamenti saranno fruttiferi o
+infruttiferi di interessi secondo quanto verrà deciso dai soci. I finanziamenti,
+con diritto alla restituzione delle somme versate, non potranno che essere
+volontari e comunque dovranno avvenire nel rispetto delle disposizioni
+contenute nelle leggi e nei regolamenti vigenti. Per il rimborso dei
+finanziamenti effettuati dai soci si applica l'articolo 2467 cod civ.
+ASSEMBLEA-DECISIONI DEI SOCI
+

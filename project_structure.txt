@@ -1,0 +1,51 @@
+rag-project/
+│
+├── scripts/
+│   ├── __init__.py
+│   ├── ingest_documents.py
+│   ├── rag_pipeline.py
+│   ├── extract_info_json.py
+│
+├── data/
+│   └── documents/
+│   └── large_chunks_dbs/
+│   └── vector_dbs/
+│   
+├── src/
+│   ├── __init__.py
+│   ├── document_ingestion/
+│   │	 ├── __init__.py
+│   │	 ├── custom_chunking.py
+│   │	 ├── fixed_size_chunking.py
+│   │	 ├── load_docs.py
+│   ├── information_extractor/
+│   │	 ├── __init__.py
+│   │	 ├── utils.py
+│   │	 ├── compenso_amministratori_schema.py
+│   │	 ├── bilanci_utili_schema.py
+│   │	 ├── info_generali_schema.py
+│   ├── rag_pipeline/
+│   │	 ├── __init__.py
+│   │	 ├── analyze_query.py
+│   │	 ├── retriever.py
+│   │	 ├── re_ranker.py
+│   │	 ├── generator.py
+│   ├── embeddings_manager.py
+│   ├── retrieval_system.	
+│   
+├── Tests/
+│   ├── __init__.py
+│   ├── test1.py
+│   ├── test2.py
+│   ├── test3.py
+
+│   
+├── requirements.txt
+├── test.py
+├── config.yaml
+├── README.md
+└── .env
+
+
+
+

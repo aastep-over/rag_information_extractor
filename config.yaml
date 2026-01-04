@@ -1,0 +1,26 @@
+# Model Settings
+args:
+  EMBEDDING_MODEL_NAME: "D:/Users/yye7607/.cache/huggingface/hub/models--intfloat--multilingual-e5-large-instruct/snapshots/274baa43b0e13e37fafa6428dbc7938e62e5c439" # 'intfloat/multilingual-e5-large-instruct' ## "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+  MAX_EMBED_TOKENS: 512      ## SentenceTransformer(EMBEDDING_MODEL_NAME).max_seq_length
+
+  RERANKER_MODEL: "D:/Users/yye7607/.cache/huggingface/hub/models--BAAI--bge-reranker-v2-m3/snapshots/953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e" # "BAAI/bge-reranker-v2-m3" ## HuggingFace model for re-ranking
+  PRUNER_MODEL: "D:/Users/yye7607/.cache/huggingface/hub/models--naver--xprovence-reranker-bgem3-v1/snapshots/dd707795cc5a6ef5570f9be5282dab615fb7373d" # path to snapshots/hashfile
+
+  OLLAMA_HOST: "http://localhost:11434"
+  LLM_MODEL: "llama3.2:3b-instruct-q8_0" ## Any model from Ollama [gemma3:4b, mistral:7b-instruct, llama3.2:3b-instruct-q8_0, llama3.2:3b-instruct-q4_0]
+  EVALUATOR_LLM: "mistral:7b-instruct" ## "gemma3:4b
+  EXTRACTOR_LLM: "llama3.2:3b-instruct-q4_0" #"mistral:7b-instruct"
+  
+  USE_CUSTOM_CHUNKING: True
+  CHUNKS_TYPE: "custom_chunks"         ## one of: "custom_chunks", "fixed_size_chunks", "semantic_chunks"
+
+  BASE_DIR: "D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor"
+  DATASET_TYPE: "temp"                 ## one of: "TRAIN", "VAL", "TEST", "temp"
+
+  
+  # Document ingestion
+  READ_MODE: "single"
+  PAGES_JOINING_STR: '------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------' #"-"*30 + " THIS IS A CUSTOM END OF PAGE " + "-"*30
+  PDF_LOADER: "pymupdf" # ("pymupdf", "pypdf")
+
+  

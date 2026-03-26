@@ -20,8 +20,9 @@ class _Output_retrieve(TypedDict):
 def retrieve(
     retriever: VectorStoreRetriever,
     query: str,
-    doc_store_page_content: Optional[LocalFileStore],
-    doc_store_metadata: Optional[LocalFileStore],
+    # doc_store_page_content: Optional[LocalFileStore], #DOC_STORE_LARGE_CHUNKS_PATH
+    # doc_store_metadata: Optional[LocalFileStore],
+    doc_store_large_chunks_path: Optional[str], 
     azienda: str = "",
     pages_joining_str: Optional[str] = None,
     retrieve_parents: bool = False
@@ -41,16 +42,23 @@ def retrieve(
         )
 
     # Retrieve Parent chunks if required
-    if retrieve_parents and (doc_store_page_content and doc_store_metadata):
+    if retrieve_parents and doc_store_large_chunks_path:
         parent_keys = set([d.metadata["parent_id"] for d in retrieved_docs])
         logger.debug("Keys of parent chunks inside retriever node:", parent_keys)
-        page_contents: List[bytes | None] = doc_store_page_content.mget(list(map(str, parent_keys))) 
-        metadatas: List[bytes | None] = doc_store_metadata.mget(list(map(str, parent_keys)))
+        page_contents = ["" for i in range(len(parent_keys))]
+        metadatas = [{} for i in range(len(parent_keys))]
+
+        for i, id in enumerate(parent_keys):
+            with open(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content/{id}", encoding="utf-8") as f:
+                page_contents[i] = f.read()
+            with open(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata/{id}", encoding="utf-8") as f:
+                metadatas[i] = json.load(f)
+        
         if page_contents and metadatas:
             retrieved_docs: List[Document] = [
                 Document(
-                    page_content=bytes.decode(p, encoding="utf-8"), 
-                    metadata=json.loads(bytes.decode(m, encoding="utf-8"))
+                    page_content=p, 
+                    metadata=m
                 )
                 for p, m in zip(page_contents, metadatas) if (p and m)
             ]
@@ -94,12 +102,13 @@ def retrieve(
 
 
 if __name__ == "__main__":
-    import yaml, os, time
+    import yaml, os, time, datetime
     from pathlib import Path
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_chroma import Chroma
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
+    from rag_info_extractor.utils.load_config import cfgs
 
     t0 = time.time()
 
@@ -111,11 +120,11 @@ if __name__ == "__main__":
     logger.info(f"Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
     # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
@@ -136,8 +145,8 @@ if __name__ == "__main__":
     retriever = vector_store.as_retriever(search_type="similarity",
                                         search_kwargs={'k': 8})
     
-    doc_store_page_content = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content") 
-    doc_store_metadata = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata")
+    # doc_store_page_content = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content") 
+    # doc_store_metadata = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata")
 
     # Get all azienda names in vector/doc store
     nome_delle_aziende = set((vector_store.get()['metadatas'][i].get('azienda'), vector_store.get()['metadatas'][i].get('filename')) for i in range(len(vector_store.get()['ids']))) 
@@ -153,16 +162,17 @@ if __name__ == "__main__":
     output = retrieve(
         retriever = retriever,
         query = QUERY,
-        doc_store_page_content = doc_store_page_content,
-        doc_store_metadata = doc_store_metadata,
+        # doc_store_page_content = doc_store_page_content,
+        # doc_store_metadata = doc_store_metadata,
+        doc_store_large_chunks_path = DOC_STORE_LARGE_CHUNKS_PATH,
         azienda = AZIENDA,
         pages_joining_str = PAGES_JOINING_STR,
-        retrieve_parents = False
+        retrieve_parents = True
     )
 
 
     with open("output_temp", "w", encoding="utf-8") as f:
-        f.write("## OUTPUT FOR: retrieve.py\n\n")
+        f.write(f"## OUTPUT FOR: retrieve.py \n{datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n\n")
         f.write("DOCUMENTS RETRIEVED: \n")
         
         retrieved_docs = output.get("context", [])

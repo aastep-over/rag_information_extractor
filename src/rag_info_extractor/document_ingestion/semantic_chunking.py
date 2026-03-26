@@ -1,6 +1,7 @@
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from transformers import AutoTokenizer
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Python native
 from pathlib import Path
@@ -13,36 +14,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
-def fixed_size_chunking(
-    child_splitter,
+def semantic_chunking(
     docs: List[Document],
-    tokenizer,
+    embedding_func: HuggingFaceEmbeddings,
+    tokenizer, 
+    splitter,
     last_parent_id: int = -1,
     last_child_id: int = -1
+
 ) -> Dict[str, List[Document]]:
-    
-    # Build parent splitter (sync, cheap)
-    parent_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=4 * getattr(child_splitter, "_chunk_size", 1000),
-        chunk_overlap=4 * getattr(child_splitter, "_chunk_overlap", 0),
-        add_start_index=True,
+
+    # Initialize and create semantic chunks
+    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile")
+    parent_chunks = semantic_chunker.create_documents(
+        texts = [d.page_content for d in docs],
+        metadatas = [d.metadata for d in docs]
     )
 
-    # Create Parent chunks
-    parent_chunks: List[Document] = []
-    for d in docs:
-        parent_chunks.extend(parent_splitter.split_documents([d]))
-    
     # Add chunk ids to parent_chunks
     for i, chunk in enumerate(parent_chunks):
         chunk.metadata["chunk_id"] = (last_parent_id + 1) + i
-    
-    # Create Child chunks from parent chunks
+
+    # Create child chunks by splitting the parent if > token_limit
     children_chunks: List[Document] = []
     child_id = (last_child_id + 1)
     for p in parent_chunks:
-        sub = child_splitter.split_documents([p])
+        sub = splitter.split_documents([p])
         for ch in sub:
             # calculate extra info
             start = ch.metadata.get("start_index", None)
@@ -53,44 +50,34 @@ def fixed_size_chunking(
                 "chunk_id": child_id,
                 "n_chars": n_chars,
                 "n_tokens": n_toks,
+                "pattern_name": "semantic"
             })
             child_id += 1
             if start is not None:
                 ch.metadata["char_start"] = int(start)
                 ch.metadata["char_end"] = int(start) + n_chars
-            children_chunks.append(ch)
-
+            children_chunks.append(ch)   
 
     return {
         "parent_chunks": parent_chunks,
         "children_chunks": children_chunks,
     }
-    
 
 
-async def fixed_size_chunking_async(
-    child_splitter,
+async def semantic_chunking_async(
     docs: List[Document],
+    embedding_func: HuggingFaceEmbeddings,
     tokenizer,
+    splitter,
     max_concurrency: int = 8,
     last_parent_id: int = -1,
     last_child_id: int = -1
-) -> Dict[str, List[Document]]:
-    """
-    Async fixed-size chunking:
-    - Builds parent chunks with a larger splitter.
-    - Builds child chunks from each parent.
-    - Computes metadata (doc_id, chunk_index, n_chars, n_tokens, char_start/char_end).
-    All blocking operations are executed off-thread.
-    """
 
-    # Build parent splitter (sync, cheap)
-    parent_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=5 * getattr(child_splitter, "_chunk_size", 2000),
-        chunk_overlap=5 * getattr(child_splitter, "_chunk_overlap", 400),
-        add_start_index=True,
-    )
-    
+) -> Dict[str, List[Document]]: 
+
+    # Initialize and create semantic chunks
+    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile")
+
     # --- Split parents concurrently ---
     sem = asyncio.Semaphore(max_concurrency)
 
@@ -98,18 +85,18 @@ async def fixed_size_chunking_async(
         """Run parent splitting off-thread to avoid blocking the event loop."""
         async with sem:
             # split_documents expects a List[Document]
-            return await asyncio.to_thread(parent_splitter.split_documents, [d])
+            return await asyncio.to_thread(semantic_chunker.create_documents, [d.page_content], [d.metadata])
     
     parent_lists = await asyncio.gather(*[_split_parent(d) for d in docs])
     parent_chunks: List[Document] = [pc for sub in parent_lists for pc in sub]
 
-    # don't include chunks with only text used for defining changing pages
+    # don't include chunks with only text used for defining changing pages or is empty string
     page_splitter_text = ("-"*30 + "THIS IS A CUSTOM END OF PAGE" + "-"*30) # joinging_str
     filtered_parents: List[Document] = [d for d in parent_chunks if (d.page_content not in page_splitter_text) and (d.page_content != "")]
     # Add chunk id to parent chunks
     for i, chunk in enumerate(filtered_parents):
         chunk.metadata["chunk_id"] = (last_parent_id + 1) + i
-        chunk.metadata["pattern_name"] = "fixed_size"
+        chunk.metadata["pattern_name"] = "semantic"
 
 
     # ----- Initialize child chunk id ------
@@ -123,13 +110,13 @@ async def fixed_size_chunking_async(
             start = _child_id
             _child_id += n
             return start
-
+    
     # --- Split children concurrently per parent ---
     async def _split_children_from_parent(p: Document) -> List[Document]:
         """Split one parent into children and compute metadata off-thread."""
         async with sem:
             # 1) Split into child chunks (blocking)
-            subs: List[Document] = await asyncio.to_thread(child_splitter.split_documents, [p])
+            subs: List[Document] = await asyncio.to_thread(splitter.split_documents, [p])
 
             # 2) Reserve a global id range for these children
             base = await _reserve_child_ids(len(subs))
@@ -162,19 +149,16 @@ async def fixed_size_chunking_async(
 
     children_lists = await asyncio.gather(*[_split_children_from_parent(p) for p in filtered_parents])
     children_chunks: List[Document] = [c for sub in children_lists for c in sub]
-    
 
     return {
         "parent_chunks": filtered_parents,
         "children_chunks": children_chunks,
     }
 
-
-
-
 if __name__ == "__main__":
 
     from langchain_community.document_loaders import PyPDFLoader
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     import fitz
     from pathlib import Path
@@ -192,12 +176,6 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging") # For DEBUG level logging, run in cli: python .\ingest_docs.py --verbose or -v
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
-
-
-    # # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
 
     cfgs = cfgs.get("args", {})
 
@@ -239,26 +217,39 @@ if __name__ == "__main__":
 
     logger.info("Docs Loaded")
     # Define text splitter and tokenizer
-    chunk_size = 400
-    chunk_overlap = 100
+    max_chunk_size = 430
+    max_chunk_overlap = 105
     tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME, use_fast=True)
-    child_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+    splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
             tokenizer,
-            chunk_size=chunk_size,  # chunk size (tokens)
-            chunk_overlap=chunk_overlap,  # chunk overlap (tokens)
+            chunk_size=max_chunk_size,  # chunk size (tokens)
+            chunk_overlap=max_chunk_overlap,  # chunk overlap (tokens)
             add_start_index=True,  # track index in original document
         )
-
-
+    embedding_func = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL_NAME,
+        encode_kwargs={"normalize_embeddings": True}
+    )
+    
+    # Create Chunks
     logger.info("Creating Chunks...")
-    chunks = asyncio.run(fixed_size_chunking_async(
-        child_splitter,
+    # chunks = asyncio.run(fixed_size_chunking_async(
+    #     child_splitter,
+    #     docs,
+    #     tokenizer,
+    #     max_concurrency = 8,
+    #     last_parent_id = -1,
+    #     last_child_id = -1
+    # ))
+    chunks = semantic_chunking(
         docs,
+        embedding_func,
         tokenizer,
-        max_concurrency = 8,
+        splitter,
         last_parent_id = -1,
         last_child_id = -1
-    ))
+    )
+
 
     # Obtain and sort parent and children chunks
     parent_chunks, children_chunks = chunks.get("parent_chunks", []), chunks.get("children_chunks", [])
@@ -267,8 +258,8 @@ if __name__ == "__main__":
 
     logger.info("Chunks created. Saving...")
     with open("output_temp", "w", encoding="utf-8") as f:
-        f.write("OUTPUT FOR fixed_size_chunking.py\n\n")
-        f.write("Fixed-Sized Chunks: \n")
+        f.write("OUTPUT FOR semantic_chunking.py\n\n")
+        f.write("SEMANTIC-SIM-BASED Chunks: \n")
         
         f.write("PARENT CHUNKS: \n\n")
         for c in parent_chunks:
@@ -285,3 +276,4 @@ if __name__ == "__main__":
         # f.writelines([f"CHUNK ID = {c.metadata.get("chunk_id")}\n{c.page_content}\n\n" for c in children_chunks])
     
     logger.info(f"Total time taken to run the script: {time.strftime("%H:%M:%S", time.gmtime(time.time()-t0))}")
+    

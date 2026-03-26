@@ -1,5 +1,10 @@
 # Custom Files
 data
+runs
+01_DEMO.ipynb
+tests/Information_Extractor/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

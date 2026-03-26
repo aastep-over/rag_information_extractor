@@ -12,7 +12,7 @@ import os
 
 
 # from other modules
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 # Logging
 import logging
@@ -496,7 +496,8 @@ if __name__ == "__main__":
     import yaml
     import argparse
 
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.load_config import cfgs
 
 
     t0 = time.time()
@@ -507,12 +508,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS:
+    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
@@ -523,7 +524,7 @@ if __name__ == "__main__":
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     PDF_LOADER = cfgs.get("PDF_LOADER", "./")
     
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "documents", DATASET_TYPE) #f"../data/documents/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     
     # Load pdf
     docs: List[Document] = []

@@ -9,8 +9,8 @@ import re
 import textwrap
 
 # Import from modules
-from .utils import CompanyMatcher, match_azienda_name
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.rag_pipeline.utils import CompanyMatcher, match_azienda_name
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 # Logging
 import logging
@@ -85,7 +85,7 @@ def analyze_query(
 
 if __name__ == "__main__":
     import time
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
 
     t0 = time.time()
@@ -109,6 +109,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
 
-    logger.info("Optimized Query: ", opt_query)
+    logger.info(f"Optimized Query: {opt_query}")
 
     logger.info(f"Total time taken to run the script: {time.strftime("%H:%M:%S", time.gmtime(time.time()-t0))}")

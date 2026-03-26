@@ -9,24 +9,26 @@ import yaml
 
 # from other modules
 from utils.eval_context_PR import context_PR_overall
-from utils.eval_accuracy import accuracy_overall, accuracy_per_company
+from utils.eval_accuracy import accuracy_overall, accuracy_per_company, percentage_of_fields_extracted
 from utils.eval_runtime import runtime_overall, runtime_per_company
 from utils.load_aziende_data_dicts import load_company_dicts
 
 
 
 def write_summary(
-    output_file: str,
+    output_file: Path,
     companies_match_data: Dict[str, Any],
+    companies_match_qa: Dict[str, Any],
     companies_runtime: Dict[str, Any],
     companies_qa: Dict[str, Any],
     companies_contexts: Dict[str, Any],
     companies_ref_qa: Dict[str, Any],
     companies_ref_contexts: Dict[str, Any],
     companies_ref_contexts_ids: Dict[str, Any],
+    combined_raw_json: Path,
+    combined_pred_json: Path,
     detailed_result: bool = True,
     USE_PARENT_CHUNKS: bool = True,
-
 ):  
 
     """Write summary + optional detailed results to the output file."""
@@ -40,6 +42,7 @@ def write_summary(
 
         # Calculate overall accuracy and runtime
         acc_all = accuracy_overall(companies_match_data)
+        acc_all_qa = accuracy_overall(companies_match_qa)
         runtime_all = runtime_overall(companies_runtime)
 
         # Calculate Context PR
@@ -57,18 +60,33 @@ def write_summary(
             companies_ref_contexts_ids
         )
 
+        # Calculate %age of fields extracted
+        combined_raw_data = json.loads(combined_raw_json.read_text(encoding="utf-8"))
+        combined_pred_data = json.loads(combined_pred_json.read_text(encoding="utf-8"))
+        percent_field_extracted = percentage_of_fields_extracted(combined_pred_data, combined_raw_data)
+
 
         # ---------------------------- SUMMARY -----------------------------------------
-        w("Use Parent Chunks: " if USE_PARENT_CHUNKS else "Not Using Parent Chunks")
+        w("Use Parent Chunks: TRUE" if USE_PARENT_CHUNKS else "Not Using Parent Chunks")
 
         w('"""')
         w("SUMMARY:\n")
+
+        # ------------------------ %age of Field extracted -------------------------
+        w("\n\t%age of Field extracted:", f"{percent_field_extracted:.2f}")
 
         # ------------------------ Accuracy ------------------------
         w("\n\tAccuracy:")
         w("\t\tAvg. Company accuracy:", f"{acc_all['overall']['accuracy']:.3f}")
         w("\t\tAvg. per Group Accuracies:")
         for group, data in acc_all['per_group'].items():
+            w(f"\t\t\t{group}: {data['accuracy']:.3f}")
+
+        # ------------------------ Accuracy (rag QA)------------------------
+        w("\n\tAccuracy (RAG QA):")
+        w("\t\tAvg. Company accuracy:", f"{acc_all_qa['overall']['accuracy']:.3f}")
+        w("\t\tAvg. per Group Accuracies:")
+        for group, data in acc_all_qa['per_group'].items():
             w(f"\t\t\t{group}: {data['accuracy']:.3f}")
 
         # ------------------------ Runtime ------------------------
@@ -133,6 +151,23 @@ def write_summary(
         w("\tAvg. Company accuracy:", f"{acc_all['overall']['accuracy']:.3f}")
         w("\n\tAvg. per Group Accuracies:")
         for group, data in acc_all['per_group'].items():
+            w(f"\t\t{group}: {data['accuracy']:.3f}")
+        
+        # ----------------------------- Accuracy Details (rag QA) -----------------------------
+        w("\n\nACCURACY (RAG QA):\n")
+        for c, c_data in companies_match_qa.items():
+            acc = accuracy_per_company(c_data)
+            w("\n\tCompany:", c)
+            w("\t\tAvg. Group accuracy:", f"{acc['overall']['accuracy']:.3f}")
+            w("\n\t\tPer Group Accuracies:")
+            for group, data in acc['per_group'].items():
+                w(f"\t\t\t{group}: {data['accuracy']:.3f}")
+            w("\n" + "-" * 40 + " xxxxx " + "-" * 40)
+
+        w("Overall accuracy (RAG QA):")
+        w("\tAvg. Company accuracy:", f"{acc_all_qa['overall']['accuracy']:.3f}")
+        w("\n\tAvg. per Group Accuracies:")
+        for group, data in acc_all_qa['per_group'].items():
             w(f"\t\t{group}: {data['accuracy']:.3f}")
 
         w('"""')
@@ -266,41 +301,60 @@ def write_summary(
 
 
 if __name__ == "__main__":
+
+    from rag_info_extractor.utils.load_config import cfgs
+
     parser = argparse.ArgumentParser(
-        description="Load dataset JSON files from ./data/<dataset_type> and build company dictionaries."
+        description="Load paths to combined_raw_json and combined_pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "dataset_type",
-        choices=["TRAIN", "VAL", "TEST"],
-        help="Which dataset folder to load from ./data/<dataset_type> (TRAIN | VAL | TEST).",
-    )
-    parser.add_argument(
-        "data_root",
+        "--combined-raw-json",
         type=str,
-        default="./data",
-        help="Root data directory (default: ./data).",
+        help="Path(relative) to combined_raw_json file",
+        required=True
+    )
+    parser.add_argument(
+        "--combined-pred-json",
+        type=str,
+        help="Path(relative) to combined_pred_json file which is to be evaluated",
+        required=True
+    )
+    parser.add_argument(
+        "--match-scores-json",
+        type=str,
+        help="Path(relative) to match_scores_json file",
+        required=True
+    )
+    parser.add_argument(
+        "--match-scores-qa-json",
+        type=str,
+        help="Path(relative) to match_scores_qa_json file",
+        required=True
     )
 
     args = parser.parse_args()
     
     t0 = time.time()
 
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # Load configs
+    cfgs = cfgs.get("args", {})
+    BASE_DIR = Path(cfgs.get("BASE_DIR", "./"))
 
-    cfgs = configs.get("args", {})
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    # Obtain paths for raw_json, combined_pred_json and match_scores_json
+    combined_raw_json = Path(BASE_DIR, args.combined_raw_json)
+    combined_pred_json = Path(BASE_DIR, args.combined_pred_json)
+    match_scores_json = Path(BASE_DIR, args.match_scores_json)
+    match_scores_qa_json = Path(BASE_DIR, args.match_scores_qa_json)
 
-    # Def dataset path and output path
-    dataset_root = Path(args.data_root)
-    dataset_dir = dataset_root / args.dataset_type
+    assert combined_raw_json.exists(), f"File not found: {combined_raw_json}"
+    assert combined_pred_json.exists(), f"File not found: {combined_pred_json}"
+    assert match_scores_json.exists(), f"File not found: {match_scores_json}"
+    assert match_scores_qa_json.exists(), f"File not found: {match_scores_qa_json}"
 
-    outputs_file = Path(BASE_DIR, "tests", "output_to_test.json")
 
     (
         companies_match_data,
+        companies_match_qa,
         companies_pred_qa,
         companies_raw_qa,
         companies_raw_contexts,
@@ -308,18 +362,21 @@ if __name__ == "__main__":
         companies_raw_contexts_ids,
         companies_pred_contexts_ids,
         companies_runtimes,
-    ) = load_company_dicts(dataset_dir, outputs_file)
+    ) = load_company_dicts(combined_raw_json, combined_pred_json, match_scores_json, match_scores_qa_json)
 
 
     write_summary(
         companies_match_data = companies_match_data,
+        companies_match_qa=companies_match_qa,
         companies_runtime = companies_runtimes,
         companies_qa = companies_pred_qa,
         companies_contexts = companies_pred_contexts_ids,
         companies_ref_qa = companies_raw_qa,
         companies_ref_contexts = companies_raw_contexts, 
         companies_ref_contexts_ids = companies_raw_contexts_ids,
-        output_file = f"{BASE_DIR}/tests/results/overall_eval.json",
+        output_file = combined_pred_json.parent / "summary.txt",
+        combined_raw_json = combined_raw_json,
+        combined_pred_json = combined_pred_json,
         detailed_result = True,
         USE_PARENT_CHUNKS = True,
     )

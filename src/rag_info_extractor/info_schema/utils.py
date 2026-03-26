@@ -93,7 +93,7 @@ def formatted_word_to_number(num_str: str) -> str:
 # Load all the schemas of info to be extracted from ./schemas
 def load_classes_from_path(
     path: str,
-    files_to_exclude: List[str]=["bilanci_e_utili.py", "compenso_degli_amministratori.py"]
+    files_to_exclude: List[str]=[] # "bilanci_e_utili.py", "compenso_degli_amministratori.py", "info_generali.py"
 
 ) -> Dict[str, Type]:
     """

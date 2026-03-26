@@ -3,6 +3,7 @@ from transformers import AutoTokenizer
 from pydantic import BaseModel, Field
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
 import fitz # for pymupdf
 
 
@@ -16,7 +17,8 @@ import textwrap
 # Relative Modules
 from rag_info_extractor.document_ingestion.custom_chunking import custom_chunking
 from rag_info_extractor.document_ingestion.fixed_size_chunking import fixed_size_chunking_async
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.document_ingestion.semantic_chunking import semantic_chunking_async
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 # Logging
 import logging
@@ -255,7 +257,7 @@ async def aload_pdfs(
     split: bool = True,
     chunk_size: int = 430,
     chunk_overlap: int = 105,
-    use_custom_chunking: bool = True,
+    chunks_type: Literal["fixed_size_chunks", "custom_chunks", "semantic_chunks"] = "custom_chunks",
     **kwargs
 ) -> Dict[str, List[Document]]:
     """Asynchronously load and optionally split all PDFs from a local folder."""
@@ -297,7 +299,7 @@ async def aload_pdfs(
         )
     
 
-    if use_custom_chunking:
+    if chunks_type == "custom_chunks":
         logger.info("Trying to Split using 'Custom Chunking'...")
         output = await custom_chunking(
             docs,
@@ -334,6 +336,19 @@ async def aload_pdfs(
                 child_splitter, docs, tokenizer, max_concurrency=8
             )
             parent_chunks, children_chunks = output["parent_chunks"], output["children_chunks"]
+    
+    elif chunks_type == "semantic_chunks":
+        logger.info("Trying to Split using 'Semantic Chunking'...")
+
+        embedding_func = HuggingFaceEmbeddings(
+            model_name=HF_embedding_model_name,
+            encode_kwargs={"normalize_embeddings": True}
+        )
+
+        output = await semantic_chunking_async(
+            docs, embedding_func, tokenizer, child_splitter, max_concurrency=8
+        )
+        
     else:         
         output = await fixed_size_chunking_async(
             child_splitter, docs, tokenizer, max_concurrency=8
@@ -354,7 +369,8 @@ if __name__ == "__main__":
     import yaml
     import argparse
 
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.load_config import cfgs
 
     t0 = time.time()
 
@@ -364,24 +380,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
 
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS:
+    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
-    USE_CUSTOM_CHUNKING = cfgs.get("USE_CUSTOM_CHUNKING")
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
+    CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "documents", DATASET_TYPE) #f"../data/documents/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     
     logger.info(f"Loading the documents: {os.listdir(DATASET_DIR)}")
     output = asyncio.run(aload_pdfs(
@@ -390,7 +406,7 @@ if __name__ == "__main__":
         evaluator_llm = EVALUATOR_LLM,
         llm_model = LLM_MODEL,
         max_embed_tokens = MAX_EMBED_TOKENS,
-        use_custom_chunking = USE_CUSTOM_CHUNKING,
+        chunks_type = CHUNKS_TYPE,
         read_mode = READ_MODE,
         pages_joining_str = PAGES_JOINING_STR    
     ))

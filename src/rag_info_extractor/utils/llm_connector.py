@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 from typing import Optional, Literal, Dict, ClassVar
 import os
+from rag_info_extractor.utils.load_config import cfgs
 
 
 
@@ -17,11 +18,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 # CONFIG SETTINGS FOR LLM
-cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-with open(cfg_path, "r", encoding="utf-8") as f:
-    configs = yaml.safe_load(f)
+# cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+# with open(cfg_path, "r", encoding="utf-8") as f:
+#     configs = yaml.safe_load(f)
 
-cfgs = configs.get("args", {})
+cfgs = cfgs.get("args", {})
 OLLAMA_MODEL = cfgs.get("LLM_MODEL", "")
 OLLAMA_HOST = cfgs.get("OLLAMA_HOST", "")
 
@@ -51,7 +52,6 @@ class OllamaLLM:
         format: Literal["json", None] = None,
         cache: bool = True,
         num_predict: Optional[int] = None,
-
     ) -> str:
         """Esegue una singola chiamata API per un prompt e restituisce il testo della risposta."""
         host = host if host else self.DEFAULT_HOST
@@ -88,8 +88,7 @@ class OllamaLLM:
         model_name: Optional[str] = None,
         host: Optional[str] = None,
         cache: bool = True,
-        num_predict: Optional[int] = None,
-    
+        num_predict: Optional[int] = None,   
     ) -> BaseModel:
         """Esegue una singola chiamata API per un prompt e restituisce il JSON (str) della risposta."""
         host = host if host else self.DEFAULT_HOST
@@ -107,6 +106,7 @@ class OllamaLLM:
                     "num_predict": num_predict,
                     "format": info_schema.model_json_schema(),
                     "cache": cache,
+                    # "think": True
                 },
                 timeout=9000
             )
@@ -185,7 +185,6 @@ class OllamaLLM:
         format: Literal["json", None] = None,
         cache: bool = True,
         num_predict: Optional[int] = None
-
     ) -> str:
 
         host = host or self.DEFAULT_HOST
@@ -304,7 +303,9 @@ if __name__ == "__main__":
 
     t0 = time.time()
 
-    llm = OllamaLLM()
+    llm = OllamaLLM(
+        llm_model = "gemma3:4b"# "qwen3.5:4b"
+    )
 
     class Durata(BaseModel):
         """
@@ -313,6 +314,7 @@ if __name__ == "__main__":
         1) "Qual è la durata della società (fino a quale data)?"
         Chiavi: durata
         """
+        # reasoning: str
         question: ClassVar[str] = "Qual è la durata della società (fino a quale data)?"
         durata_dell_azienda: str = Field(
             default="",
@@ -382,7 +384,6 @@ if __name__ == "__main__":
             }
             infos_to_extract_processed.append(info)
         
-
         results = [llm.invoke(memory=info.get("prompt"), output_format="structured", info_schema=info.get("schema")) for info in infos_to_extract_processed] 
         for result in results:
             print(result.model_dump()) # type: ignore
@@ -413,6 +414,21 @@ if __name__ == "__main__":
 
 
     # extract_all(infos_to_extract)
-    asyncio.run(aextract_all(infos_to_extract[:1])) 
+    # asyncio.run(aextract_all(infos_to_extract[:1])) 
+    # print(llm.invoke(output_format="text", memory="Ciao, come stai?"))
+
+
+    prompt = '\n    Sei un normalizzatore di RISPOSTE per un sistema RAG su statuti societari.\n    Compila i campi del modello esclusivamente usando la RISPOSTA fornita qui sotto (non usare il contesto); mantieni il testo nei campi il più breve possibile.\n    Regole:\n    - Se la RISPOSTA è esattamente "Non ho trovato la risposta nei documenti forniti" oppure non copre un campo → metti stringa vuota "".\n    - Sì/No: usa "Sì" o "No".\n    - Elenchi: elementi separati da virgole, senza punto finale.\n    - Numeri e date: riporta esattamente il testo così come compare nella RISPOSTA, senza convertirli né modificarli. Non convertire/normalizzare (non trasformare “duecento” in “200”)\n    - Output: SOLO il JSON del modello richiesto; nessun testo extra; \n    DOMANDA:\n    Qual è la durata della società (fino a quale data)?\n\n    RISPOSTA:\n    La società dura fino al 31 dicembre 2060, salvo proroga o scioglimento anticipato.La società dura fino al 31 dicembre 2060, salvo proroga o scioglimento anticipato.\n\n    Compila il modello  usando SOLO la RISPOSTA.\n'
+    # extra_prompt = f"JSON schema richiesto:\n    {json.dumps(Durata.model_json_schema(), indent=4, ensure_ascii=False)}\n\n"
+    print(json.dumps(Durata.model_json_schema(), indent=4, ensure_ascii=False))
+    print(llm.get_structured_response(
+        prompt_content=prompt,
+        info_schema=Durata #type: ignore
+    ))
+
 
     print(f"Total time taken to execute the script: {time.time() - t0:.3f} s")
+
+
+
+    # TODO: Make the get_structured_response work with qwen3.5:4b (reasoning) model.

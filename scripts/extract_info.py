@@ -1,3 +1,6 @@
+# TODO: Launch pipeline by with llama, ministral and gemma one more ti
+
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from tqdm import tqdm
@@ -13,7 +16,7 @@ import datetime
 # from other modules
 from rag_info_extractor.info_schema.utils import formatted_word_to_number, load_classes_from_path, group_classes_by_module
 from rag_pipeline import RAGPipeline #rag_information_extractor/scripts/rag_pipeline.py
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 
 ## ---------------------------------------------- ******* ------------------------------------------
@@ -121,8 +124,6 @@ class ExtractInfo:
             q = m.question + f" Nome della società: {self.nome_azienda.upper()}" #  [{self.nome_azienda.upper()}]
             answer = self.extractor_graph.get_response(q)
             time_consumed = self.extractor_graph.latency
-
-            name_sub_module: str = m.model_json_schema()['title']###
             
             t1 = time.time()
 
@@ -141,6 +142,7 @@ class ExtractInfo:
 
 
             logger.debug(f'Module: {name_sub_module}')###
+            logger.debug(f'Module: {name_sub_module}')###
             logger.debug(f"Question: \t {q}")###
             logger.debug(f"Answer: \t {answer}")###
 
@@ -150,10 +152,17 @@ class ExtractInfo:
             self.ori_contexts_texts[name_sub_module] = self.extractor_graph.retrieved_docs_texts###
             try:
                 self.re_ranked_contexts[name_sub_module] = self.extractor_graph.re_ranked_docs_ids###
-                self.re_ranked_contexts_texts[name_sub_module] = self.extractor_graph.re_ranked_docs_texts###
-            except AttributeError:
+            except AttributeError as e:
+                logger.error("re_ranked_docs_ids not found")
+                logger.exception(e)
                 self.re_ranked_contexts[name_sub_module] = {}#[]
+            try:
+                self.re_ranked_contexts_texts[name_sub_module] = self.extractor_graph.re_ranked_docs_texts###
+            except AttributeError as e:
+                logger.error("re_ranked_docs_texts not found")
+                logger.exception(e)
                 self.re_ranked_contexts_texts[name_sub_module] = {}###
+
             self.rag_qa[name_sub_module] = {"Q": q, "A": answer}###
 
             # print("Time taken:", time_consumed)
@@ -231,7 +240,7 @@ def extract_and_save_all_info(
         json.dump(info_extracted, f, indent=4, ensure_ascii=False)
     
     # write final result to output.json
-    file_name = f"{save_dir}/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}.json"
+    file_name = f"{save_dir}/pred.json"
     with open(file_name, "w", encoding="utf-8") as f:
         json.dump(info_extracted, f, indent=4, ensure_ascii=False)
 
@@ -245,23 +254,25 @@ if __name__ == "__main__":
 
     import os
     import yaml
-    import time
+    import time, datetime
     import argparse
 
     # logging relative
     import logging
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.load_config import cfgs
+
     logger = logging.getLogger(__name__)
 
 
     t0 = time.time()
 
-    # CONFIG FILE SETTINGS  (Load args form config file)
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS  (Load args form config file)
+    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     RERANKER_MODEL = cfgs.get("RERANKER_MODEL")
@@ -279,10 +290,12 @@ if __name__ == "__main__":
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     
     
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "documents", DATASET_TYPE) #f"../data/documents/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/large_chunks_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
     VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/vector_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
-    OUTPUT_SAVE_DIR = os.path.join(BASE_DIR, 'outputs', DATASET_TYPE, CHUNKS_TYPE)
+    OUTPUT_SAVE_DIR = os.path.join(BASE_DIR, 'runs', DATASET_TYPE, CHUNKS_TYPE, f"run_{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}")
+    os.makedirs(OUTPUT_SAVE_DIR, exist_ok=True)
+    logger.info(f"Output will be saved to {OUTPUT_SAVE_DIR}")
 
     # Configure logging settings
     parser = argparse.ArgumentParser()
@@ -307,12 +320,25 @@ if __name__ == "__main__":
     nome_delle_aziende = sorted(nome_delle_aziende, key=lambda x: x[1])
     azienda_name_records = [x[0] for x in nome_delle_aziende]
 
+    nome_delle_aziende = [
+        ('cybershield defense & intelligence s.r.l.', 'statuto sociale CyberShield Defense & Intelligence S.r.l..pdf'),
+        ('innovatex manifatture avanzate s.r.l.', 'statuto sociale InnovaTex Manifatture Avanzate S.r.l.pdf'),
+        ('medicare salute & s.r.l.', 'statuto sociale MediCare Salute & Servizi S.r.l.pdf'),
+        ('quantum leap robotics s.r.l.', 'statuto sociale Quantum Leap Robotics S.r.l.pdf')
+    ]
+    azienda_name_records = [
+        'cybershield defense & intelligence s.r.l.',
+        'innovatex manifatture avanzate s.r.l.',
+        'medicare salute & s.r.l.',
+        'quantum leap robotics s.r.l.'
+    ]
+
     # Load the schemas of info to be etracted
     classes = load_classes_from_path(os.path.join(BASE_DIR, "src", "rag_info_extractor", "info_schema", "schemas"))
 
     # Load RAG pipeline
     logger.info("Initializing RAG Pipeline...") ###
-    try:
+    try: # TODO: test and remove it
         rag_obj = RAGPipeline(
             db_retriever = retriever,
             # pruner_model = PRUNER_MODEL,
@@ -324,6 +350,7 @@ if __name__ == "__main__":
         ) 
         logger.info("Initialized RAG Pipeline.") ###
     except Exception as e:
+        logger.error("Error initializing RAG Pipeline.")
         logger.exception(e) 
     
 
@@ -332,6 +359,10 @@ if __name__ == "__main__":
         llm_model=EXTRACTOR_LLM,
         temperature=0
     )
+
+    # Save config
+    with open(os.path.join(OUTPUT_SAVE_DIR, "config.yaml"), "w", encoding="utf-8") as f:
+        yaml.dump(cfgs, f)
 
     # Extract info
     extract_and_save_all_info(

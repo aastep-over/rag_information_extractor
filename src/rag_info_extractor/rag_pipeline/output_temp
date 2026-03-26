@@ -1,75 +1,44 @@
-## OUTPUT FOR: generator.py
+## OUTPUT FOR: retrieve.py 
+2026-03-10 11:54:51
 
-Question: Agli amministratori spetta il rimborso delle spese? 
-Answer: Sì, agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio.
-
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-CONTEXTS: 
-
+# FUNCTION: cross_encode_rerankRe-Ranked Documents: 
 
 -------------------------------------------------- CHUNK 0 --------------------------------------------------
-CHUNK ID: 17
+CHUNK ID: 27
 Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese
 sostenute in ragione del loro ufficio, un compenso eventuale determinato dai
 soci.
 
 
 -------------------------------------------------- CHUNK 1 --------------------------------------------------
-CHUNK ID: 13
-Art.15. -  Per la validità delle deliberazioni del consiglio è necessaria la
-presenza ed il voto favorevole della maggioranza degli amministratori in
-carica.
-
-
--------------------------------------------------- CHUNK 2 --------------------------------------------------
-CHUNK ID: 18
+CHUNK ID: 26
 Art.18.- La firma e la rappresentanza sociale spettano all'Amministratore
 Unico, ai coamministratori disgiuntamente o congiuntamente, o, nel caso in
 cui esista il Consiglio di Amministrazione, al Presidente di quest’ultimo e
 agli amministratori delegati, nei limiti della delega.
 
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Re-Ranked Doc IDs: 
 
--------------------------------------------------- CHUNK 3 --------------------------------------------------
-CHUNK ID: 11
-Art.14. – Il Consiglio di Amministrazione viene convocato dal presidente
-con comunicazione scritta trasmessa, almeno tre giorni prima dell'adunanza,
-a ciascun amministratore e nei casi di urgenza con telegramma da spedirsi
-almeno un giorno prima.
+parents =  [27, 26]
+children =  []
 
 
--------------------------------------------------- CHUNK 4 --------------------------------------------------
-CHUNK ID: 10
-Art.13.– Il Consiglio di Amministrazione sceglie fra i suoi membri un
-Presidente, se questi non è nominato dai soci, ed eventualmente, un
-Vice-Presidente che sostituisce il Presidente in caso di assenza o
-impedimento di quest'ultimo.
- Per tutte le ipotesi di cessazione, rinuncia e sostituzione degli
-amministratori si applicano gli articoli 2385 e 2386 codice civile.
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Re-Ranked Doc Texts: 
 
+parents =  ['Art.19.– A ...  dai\nsoci.', 'Art.18.- L ... la delega.']
+children =  []
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Debug Info: 
 
--------------------------------------------------- CHUNK 5 --------------------------------------------------
-CHUNK ID: 19
-Art.20.- Gli amministratori non possono assumere la qualità di soci
-illimitatamente responsabili in società concorrenti, né esercitare un'attività
-concorrente per conto proprio o di terzi, né essere amministratori o direttori
-generali in una società concorrente, salvo autorizzazione dell'assemblea.
-L'amministratore che non osservi il presente divieto può essere revocato  e
-risponde dei danni.
- ORGANO DI CONTROLLO
-
-
--------------------------------------------------- CHUNK 6 --------------------------------------------------
-CHUNK ID: 15
-Art.17. – All'organo amministrativo spettano i poteri più ampi per
-l'amministrazione della società tanto in via ordinaria che in via straordinaria,
-tranne ciò che per legge o dal presente statuto è demandato alle decisioni dei
-soci.
-
-
--------------------------------------------------- CHUNK 7 --------------------------------------------------
-CHUNK ID: 14
-Art.16. - Il consiglio di amministrazione può delegare le proprie
-attribuzioni ad un o più dei suoi membri determinandone all'atto della
-nomina i poteri con le limitazioni di cui all'articolo 2381 c.c.
-POTERI DEGLI AMMINISTRATORI
-
+{
+    "heuristics": {
+        "parent_concentration": null,
+        "similarity_margin": null,
+        "avg_span_density": null,
+        "qflags": null,
+        "need_parent": true
+    },
+    "selected_k": 2
+}

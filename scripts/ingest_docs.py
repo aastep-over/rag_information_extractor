@@ -6,7 +6,7 @@ from langchain_chroma import Chroma
 # Python native
 import asyncio, os
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Literal
 import json
 
 # from other modules
@@ -17,7 +17,7 @@ from rag_info_extractor.document_ingestion.load_docs import aload_pdfs
 
 def load_docs_from_dir(
     dataset_dir: str | Path,
-    use_custom_chunking: bool,
+    chunks_type: Literal["fixed_size_chunks", "custom_chunks", "semantic_chunks"],
     HF_embedding_model_name: str,
     evaluator_llm: str,
     llm_model: str,
@@ -37,7 +37,7 @@ def load_docs_from_dir(
         split = True,
         chunk_size = 430,
         chunk_overlap = 105,
-        use_custom_chunking = use_custom_chunking,
+        chunks_type = chunks_type,
         read_mode = read_mode,
         pages_joining_str = pages_joining_str
     ))
@@ -105,30 +105,31 @@ if __name__ == "__main__":
 
     # logging relative
     import logging
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.load_config import cfgs 
+    
     logger = logging.getLogger(__name__)
 
     t0 = time.time()
 
-    # CONFIG FILE SETTINGS
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS
+    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
-    USE_CUSTOM_CHUNKING = cfgs.get("USE_CUSTOM_CHUNKING")
-    DATASET_TYPE = cfgs.get("DATASET_TYPE")
+    DATASET_TYPE = "TEST"#cfgs.get("DATASET_TYPE") # =============================== XXX NEED TO BE CHANGED ==================================================
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "documents", DATASET_TYPE) #f"../data/documents/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/large_chunks_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
     VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/vector_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
 
@@ -143,7 +144,7 @@ if __name__ == "__main__":
     # load and split docs in parent & child chunks
     parent_chunks, children_chunks = load_docs_from_dir(
         dataset_dir = DATASET_DIR,
-        use_custom_chunking = USE_CUSTOM_CHUNKING,
+        chunks_type = CHUNKS_TYPE,
         HF_embedding_model_name = EMBEDDING_MODEL_NAME,
         evaluator_llm = EVALUATOR_LLM,
         llm_model = LLM_MODEL,

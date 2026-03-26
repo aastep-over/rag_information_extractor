@@ -4,7 +4,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # percorso del venv (modifica se il tuo venv si chiama diversamente)
-VENV_DIR="../.venv"
+VENV_DIR=".venv"
 
 # prova a trovare e attivare l'activate script (Linux/Mac o Windows Git Bash)
 if [ -f "${VENV_DIR}/bin/activate" ]; then
@@ -23,7 +23,8 @@ fi
 ollama serve > /dev/null 2>&1 &
 
 # esegui lo script Python e passa eventuali argomenti
-python ./scripts/extract_info.py "$@"
+cd scripts
+python extract_info.py "$@"
 
 # prova a disattivare (se è stato attivato)
 if type deactivate >/dev/null 2>&1; then

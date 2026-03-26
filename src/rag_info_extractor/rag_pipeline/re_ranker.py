@@ -75,8 +75,7 @@ def cross_encode_rerank(
     re_ranker: CrossEncoder, 
     contexts: List[Document],
     question: str,
-    doc_store_page_content: Optional[LocalFileStore],
-    doc_store_metadata: Optional[LocalFileStore],
+    doc_store_large_chunks_path: Optional[str],
     k_min: int = 2,
     k_max: int = 5,
     rel_thresh: float = 0.4,
@@ -180,9 +179,7 @@ def cross_encode_rerank(
                 "need_parent": bool(need_parent)
             }
 
-        
-
-        if need_parent and (doc_store_page_content and doc_store_metadata):
+        if need_parent and doc_store_large_chunks_path:
             # Choose the most represented parents from the *selected set* to keep it tight
             sel_parent_counts = Counter([d.metadata.get("parent_id") for d in selected_docs])
             
@@ -192,15 +189,21 @@ def cross_encode_rerank(
 
             keys = [pid for pid, _ in sel_parent_counts.most_common(max_promoted_parents)] # List[int]
 
-            page_contents: List[bytes | None] = doc_store_page_content.mget(list(map(str, keys))) 
-            metadatas: List[bytes | None] = doc_store_metadata.mget(list(map(str, keys)))
+            page_contents = ["" for i in range(len(keys))]
+            metadatas = [{} for i in range(len(keys))]
+
+            for i, id in enumerate(keys):
+                with open(f"{doc_store_large_chunks_path}/page_content/{id}", encoding="utf-8") as f:
+                    page_contents[i] = f.read()
+                with open(f"{doc_store_large_chunks_path}/metadata/{id}", encoding="utf-8") as f:
+                    metadatas[i] = json.load(f)
 
             # store them as Document obj
             if page_contents and metadatas:
                 promoted_parents_docs: List[Document] = [
                     Document(
-                        page_content=bytes.decode(p, encoding="utf-8"),
-                        metadata=json.loads(bytes.decode(m, encoding="utf-8"))
+                        page_content=p,
+                        metadata=m
                     )
                     for p, m in zip(page_contents, metadatas) if (p and m)
                 ]
@@ -355,8 +358,8 @@ def main(functions_to_run: List[str]):
     retriever = vector_store.as_retriever(search_type="similarity",
                                         search_kwargs={'k': 8})
     
-    doc_store_page_content = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content") 
-    doc_store_metadata = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata")
+    # doc_store_page_content = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content") 
+    # doc_store_metadata = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata")
 
     # # Get all azienda names in vector/doc store
     # nome_delle_aziende = set((vector_store.get()['metadatas'][i].get('azienda'), vector_store.get()['metadatas'][i].get('filename')) for i in range(len(vector_store.get()['ids']))) 
@@ -372,8 +375,9 @@ def main(functions_to_run: List[str]):
     retrieval_output = retrieve(
         retriever = retriever,
         query = QUERY,
-        doc_store_page_content = doc_store_page_content,
-        doc_store_metadata = doc_store_metadata,
+        # doc_store_page_content = doc_store_page_content,
+        # doc_store_metadata = doc_store_metadata,
+        doc_store_large_chunks_path = DOC_STORE_LARGE_CHUNKS_PATH,
         azienda = AZIENDA,
         pages_joining_str = PAGES_JOINING_STR,
         retrieve_parents = False
@@ -386,8 +390,9 @@ def main(functions_to_run: List[str]):
             re_ranker = re_ranker, 
             contexts = retrieval_output.get("context", []),
             question = QUESTION,
-            doc_store_page_content = doc_store_page_content,
-            doc_store_metadata = doc_store_metadata,
+            # doc_store_page_content = doc_store_page_content,
+            # doc_store_metadata = doc_store_metadata,
+            doc_store_large_chunks_path = DOC_STORE_LARGE_CHUNKS_PATH,
             k_min = 2,
             k_max = 5,
             rel_thresh = 0.4,
@@ -408,7 +413,7 @@ def main(functions_to_run: List[str]):
 
     # Write output to a file
     with open("output_temp", "w", encoding="utf-8") as f:
-        f.write("## OUTPUT FOR: retrieve.py\n\n")
+        f.write(f"## OUTPUT FOR: re_ranker.py \n{datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n\n")
         
         # Save outputs of cross_encode_reranker
         if "cross_encode_rerank" in functions_to_run:
@@ -459,13 +464,14 @@ def main(functions_to_run: List[str]):
 
 
 if __name__ == "__main__":
-    import yaml, os, time
+    import yaml, os, time, datetime
     from pathlib import Path
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_chroma import Chroma
     from langchain_community.cross_encoders import HuggingFaceCrossEncoder
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
+    from rag_info_extractor.utils.load_config import cfgs
 
     from rag_info_extractor.rag_pipeline.retrieve import retrieve
 
@@ -479,11 +485,11 @@ if __name__ == "__main__":
     logger.info(f"Logging for {'-'*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
     # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
@@ -503,7 +509,7 @@ if __name__ == "__main__":
 
 
     # Run and save outputs of each function
-    functions_to_run = ["faster_retrieve_and_rerank"] # in ["cross_encode_rerank", "faster_retrieve_and_rerank"]  # can be both
+    functions_to_run = ["cross_encode_rerank"] # in ["cross_encode_rerank", "faster_retrieve_and_rerank"]  # can be both
     main(functions_to_run)
 
     logger.info(f"Total time taken to run the script: {time.strftime('%H:%M:%S', time.gmtime(time.time()-t0))}")

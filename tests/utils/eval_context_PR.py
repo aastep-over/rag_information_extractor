@@ -13,15 +13,16 @@ from ragas.metrics import NonLLMContextPrecisionWithReference, NonLLMContextReca
 from ragas.llms import LangchainLLMWrapper
 
 # from other modules
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
+from rag_info_extractor.utils.load_config import cfgs
 
 
 # CONFIG FILE SETTINGS  (Load args form config file)
-cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-with open(cfg_path, "r", encoding="utf-8") as f:
-    configs = yaml.safe_load(f)
+# cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
+# with open(cfg_path, "r", encoding="utf-8") as f:
+#     configs = yaml.safe_load(f)
 
-cfgs = configs.get("args", {})
+cfgs = cfgs.get("args", {})
 EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "")
 
 ## ------------------------- HELPERS --------------------------------------------------------
@@ -31,7 +32,45 @@ EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "")
 evaluator_llm = LangchainLLMWrapper(OllamaLLM(llm_model=EVALUATOR_LLM, temperature=0))
 
 # -------- CONTEXT PRECISION & RECALL FOR 1 QUERY -------------------
+
+# Custom CP function to calculate cp using chunk ids
 def context_precision(
+    retrieved_contexts: List[int],
+    re_ranked_contexts: List[int],
+    reference_context_ids: List[int]
+) -> Dict[str, float | None]:
+    """
+    Calculates the rank-aware Context Precision for both retrieved and re-ranked context lists using chunk_ids.
+    """
+    # no ref context => cp is not defined
+    if not reference_context_ids:
+        return {"retrieved_CP": None, "re_ranked_CP": None}
+
+    def _get_cp(retrieved_ids: List[int]):
+        relevant_count = 0
+        precision_sum = 0.0
+
+        for i, chunk_id in enumerate(retrieved_ids):
+            if chunk_id in reference_context_ids:
+                relevant_count += 1
+                # Precision@i = relevant chunks found so far / total chunks checked so far (idx + 1)
+                precision_at_i = relevant_count / (i + 1)
+                precision_sum += precision_at_i
+        
+        # CP = precision_sum / num_of_relevant_chunks
+        if relevant_count > 0:
+            return precision_sum / relevant_count
+        else:
+            return 0.0
+    
+    return {
+        "retrieved_CP": _get_cp(retrieved_contexts),
+        "re_ranked_CP": _get_cp(re_ranked_contexts)
+    }
+
+
+# Using RAGAS APIs
+def context_precision_ragas(
     azienda_name: str,
     question: str,
     answer: str,
@@ -46,6 +85,12 @@ def context_precision(
     verbose: bool = False
 ) -> Dict[str, float]:
     
+    if not id_based and not chunks:
+        raise ValueError(
+            "Invalid arguments: 'chunks' (List[Document]) must be provided "
+            "when 'id_based' is False."
+        )
+
     if verbose:
         print("PRECISION:")
         print(f"Azienda: {azienda_name}")###
@@ -125,8 +170,17 @@ def context_recall(
     chunks: List[Document]=[],
     use_llm: bool=False,
     verbose: bool = False
-) -> Dict[str, float]:
+) -> Dict[str, float | None]:
     
+    if (not reference_context_ids) and (not reference_context):
+        return {"retrieved_CR": None, "re_ranked_CR": None} 
+
+    if not id_based and not chunks:
+        raise ValueError(
+            "Invalid arguments: 'chunks' (List[Document]) must be provided "
+            "when 'id_based' is False."
+        )
+        
     if verbose:
         print("RECALL:")
         print(f"Azienda: {azienda_name}")###
@@ -250,16 +304,24 @@ def context_PR_per_company(
                 reference_context = ref_contexts[group_name][sg_name]
                 ref_context_ids = ref_contexts_ids[group_name][sg_name].get("parents", [])
 
-                cp = context_precision(
-                    azienda_name, question, answer, ref_answer,
-                    retrieved_docs, re_ranked_docs, reference_context, ref_context_ids, 
-                    use_llm=False
-                )
-                cr = context_recall(
-                    azienda_name, question, answer, ref_answer,
-                    retrieved_docs, re_ranked_docs, reference_context, ref_context_ids,
-                    use_llm=False
-                )
+                # if ref_context is missing, set values to None because it shouldn't be counted for calculating mean cp and cr
+                if not ref_context_ids:
+                    cp = {"retrieved_CP": None, "re_ranked_CP": None}
+                    cr = {"retrieved_CR": None, "re_ranked_CR": None}
+                else:
+                    # cp = context_precision_ragas(
+                    #     azienda_name, question, answer, ref_answer,
+                    #     retrieved_docs, re_ranked_docs, reference_context, ref_context_ids, 
+                    #     use_llm=False
+                    # )
+                    cp = context_precision(
+                        retrieved_docs, re_ranked_docs, ref_context_ids
+                    )
+                    cr = context_recall(
+                        azienda_name, question, answer, ref_answer,
+                        retrieved_docs, re_ranked_docs, reference_context, ref_context_ids,
+                        use_llm=False
+                    )
 
             else:
                 print(f"use parent: {use_parent_chunks}")###
@@ -270,16 +332,24 @@ def context_PR_per_company(
                 reference_context = ref_contexts[group_name][sg_name]
                 ref_context_ids = ref_contexts_ids[group_name][sg_name].get("children", [])
 
-                cp = context_precision(
-                    azienda_name, question, answer, ref_answer,
-                    retrieved_docs, re_ranked_docs, reference_context, ref_context_ids, 
-                    use_llm=False
-                )
-                cr = context_recall(
-                    azienda_name, question, answer, ref_answer,
-                    retrieved_docs, re_ranked_docs, reference_context, ref_context_ids,
-                    use_llm=False
-                )
+                # if ref_context is missing, set values to None because it shouldn't be counted for calculating mean cp and cr
+                if not ref_context_ids:
+                    cp = {"retrieved_CP": None, "re_ranked_CP": None}
+                    cr = {"retrieved_CR": None, "re_ranked_CR": None}
+                else:
+                    # cp = context_precision_ragas(
+                    #     azienda_name, question, answer, ref_answer,
+                    #     retrieved_docs, re_ranked_docs, reference_context, ref_context_ids, 
+                    #     use_llm=False
+                    # )
+                    cp = context_precision(
+                        retrieved_docs, re_ranked_docs, ref_context_ids
+                    )
+                    cr = context_recall(
+                        azienda_name, question, answer, ref_answer,
+                        retrieved_docs, re_ranked_docs, reference_context, ref_context_ids,
+                        use_llm=False
+                    )
 
             # cr looks like:
             # {

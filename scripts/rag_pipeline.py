@@ -1,6 +1,5 @@
 from langchain_core.documents import Document
 from langchain_core.vectorstores.base import VectorStoreRetriever
-from langchain.storage import LocalFileStore
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 
@@ -24,7 +23,7 @@ from pathlib import Path
 
 
 # Import rag parts from modules
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 from rag_info_extractor.rag_pipeline.analyze_query import analyze_query, Search
 from rag_info_extractor.rag_pipeline.retrieve import retrieve  
 from rag_info_extractor.rag_pipeline.re_ranker import cross_encode_rerank, faster_retrieve_and_rerank
@@ -76,8 +75,7 @@ class RAGPipeline:
 
         # Retrieve full/Parent chunks if doc_store_path passed
         if doc_store_path:
-            self.doc_store_page_content = LocalFileStore(f"{doc_store_path}/page_content")
-            self.doc_store_metadata = LocalFileStore(f"{doc_store_path}/metadata")
+            self.doc_store_path = doc_store_path
         else:
             self.doc_store_page_content = None
             self.doc_store_metadata = None
@@ -99,13 +97,13 @@ class RAGPipeline:
                 self.pruner = AutoModel.from_pretrained(
                     pruner_model,
                     trust_remote_code=True,
-                    local_files_only=True
+                    # local_files_only=True
                 )
         else:
             self.pruner = None
 
         # Re-ranker
-        self.re_ranker = None # CrossEncoder(reranker_model, device="cpu", max_length=512) #HuggingFaceCrossEncoder(model_name=RERANKER_MODEL, model_kwargs={"device": "cpu"})
+        self.re_ranker = CrossEncoder(reranker_model, device="cpu", max_length=512) #HuggingFaceCrossEncoder(model_name=RERANKER_MODEL, model_kwargs={"device": "cpu"})
         self.fast_re_ranker = CrossEncoderReranker(model=HuggingFaceCrossEncoder(model_name=reranker_model), top_n=8) # re_ranker compressor for fast retrieve + re_rank+ compression
 
         # # Verifier
@@ -134,17 +132,17 @@ class RAGPipeline:
         # add edges to the graph
         graph.set_entry_point("analyze_query")
 
-        # graph.add_edge("analyze_query", "retrieve")
-        graph.add_edge("analyze_query", "faster_retrieve_and_rerank")
+        graph.add_edge("analyze_query", "retrieve")
+        # graph.add_edge("analyze_query", "faster_retrieve_and_rerank")
         
-        # graph.add_edge("retrieve", "cross_encode_rerank")
+        graph.add_edge("retrieve", "cross_encode_rerank")
         # graph.add_edge("retrieve", "pruning")
         # graph.add_edge("cross_encode_rerank", "pruning")
 
-        # graph.add_edge("cross_encode_rerank", "generate")
+        graph.add_edge("cross_encode_rerank", "generate")
         # graph.add_edge("pruning", "generate")
         # graph.add_edge("retrieve", "generate")
-        graph.add_edge("faster_retrieve_and_rerank", "generate")
+        # graph.add_edge("faster_retrieve_and_rerank", "generate")
 
         graph.add_edge("generate", END)
         # graph.add_edge("generate", "verify")
@@ -203,8 +201,9 @@ class RAGPipeline:
         output_retrieve = retrieve(
             retriever = self.retriever,
             query = query,
-            doc_store_page_content = self.doc_store_page_content, 
-            doc_store_metadata = self.doc_store_metadata,
+            # doc_store_page_content = self.doc_store_page_content, 
+            # doc_store_metadata = self.doc_store_metadata,
+            doc_store_large_chunks_path = self.doc_store_path,
             azienda = azienda,
             pages_joining_str = self.pages_joining_str,
             retrieve_parents = False
@@ -243,8 +242,7 @@ class RAGPipeline:
                 re_ranker = self.re_ranker, 
                 contexts = state["context"],
                 question = state["question"],
-                doc_store_page_content = self.doc_store_page_content,
-                doc_store_metadata = self.doc_store_metadata,
+                doc_store_large_chunks_path = self.doc_store_path,
                 k_min = 2,
                 k_max = 5,
                 rel_thresh = 0.4,
@@ -371,7 +369,7 @@ class RAGPipeline:
 
 if __name__ == "__main__":
 
-    import yaml, os, time
+    import yaml, os, time, datetime
     from pathlib import Path
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_chroma import Chroma
@@ -379,17 +377,18 @@ if __name__ == "__main__":
 
     # logging relative
     import logging
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.load_config import cfgs
     logger = logging.getLogger(__name__)
 
     t0 = time.time()
 
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS:
+    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL") 
@@ -401,7 +400,9 @@ if __name__ == "__main__":
     PRUNER_MODEL = cfgs.get("PRUNER_MODEL")
     
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) 
-    VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) 
+    VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE)
+    assert os.path.exists(DOC_STORE_LARGE_CHUNKS_PATH), "DOC_STORE_LARGE_CHUNKS_PATH not found"
+    assert os.path.exists(VECTOR_STORE_PATH), "VECTOR_STORE_PATH not found"
 
     # Configure logging settings
     parser = argparse.ArgumentParser()
@@ -421,9 +422,6 @@ if __name__ == "__main__":
                         collection_name="pdf_chunks")
     retriever = vector_store.as_retriever(search_type="similarity",
                                         search_kwargs={'k': 8})
-
-    doc_store_page_content = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content") 
-    doc_store_metadata = LocalFileStore(f"{DOC_STORE_LARGE_CHUNKS_PATH}/metadata")
 
     # Get all azienda names in vector/doc store
     nome_delle_aziende = set((vector_store.get()['metadatas'][i].get('azienda'), vector_store.get()['metadatas'][i].get('filename')) for i in range(len(vector_store.get()['ids']))) 
@@ -462,20 +460,26 @@ if __name__ == "__main__":
         retrieved_vs_chunk_ids = [i for i, m in enumerate(vector_store.get().get("metadatas", [])) if m.get("chunk_id") in retrieved_docs_ids.get("children", [])]
         retrieved_vs_chunks = [c for i, c in enumerate(vector_store.get().get("documents", [])) if i in retrieved_vs_chunk_ids] # vector_store chunks
         
-        retrieved_ds_chunks_bin = doc_store_page_content.mget(list(map(str, retrieved_docs_ids.get("parents", [])))) # doc store chunks
-        retrieved_ds_chunks = [bytes.decode(p, encoding="utf-8") for p in retrieved_ds_chunks_bin if p]
+        retrieved_parents_keys = retrieved_docs_ids.get("parents", [])
+        retrieved_ds_chunks = ["" for i in range(len(retrieved_parents_keys))]
+        for i, id in enumerate(retrieved_parents_keys):
+            with open(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content/{id}", encoding="utf-8") as f:
+                retrieved_ds_chunks[i] = f.read()
 
         # Obtain re_ranked_chunks
         re_ranked_docs_ids = rag_obj.re_ranked_docs_ids
         re_ranked_vs_chunk_ids = [i for i, m in enumerate(vector_store.get().get("metadatas", [])) if m.get("chunk_id") in re_ranked_docs_ids.get("children", [])]
         re_ranked_vs_chunks = [c for i, c in enumerate(vector_store.get().get("documents", [])) if i in re_ranked_vs_chunk_ids] # vector_store chunks
-
-        re_ranked_ds_chunks_bin = doc_store_page_content.mget(list(map(str, re_ranked_docs_ids.get("parents", [])))) # doc store chunks
-        re_ranked_ds_chunks = [bytes.decode(p, encoding="utf-8") for p in re_ranked_ds_chunks_bin if p]
+        
+        re_ranked_parents_keys = re_ranked_docs_ids.get("parents", [])
+        re_ranked_ds_chunks = ["" for i in range(len(re_ranked_parents_keys))]
+        for i, id in enumerate(re_ranked_parents_keys):
+            with open(f"{DOC_STORE_LARGE_CHUNKS_PATH}/page_content/{id}", encoding="utf-8") as f:
+                re_ranked_ds_chunks[i] = f.read()
 
         # Store contexts/query in output_temp.txt
         with open("output_temp", "w", encoding="utf-8") as f:
-            f.write("## OUTPUT FOR: rag_pipeline.py\n\n")
+            f.write(f"## OUTPUT FOR: rag_pipeline.py \n{datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"USER QUERY: {USER_QUERY}\n\n")
             f.write(f"Optimied Query: {rag_obj.optimized_query}\n\n")
             f.write(f"LLM ANSWER: {ai_response}\n\n")

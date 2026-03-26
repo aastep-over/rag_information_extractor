@@ -1,5 +1,5 @@
 # load frorm other modules
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 
 def simplify_text_with_llm(

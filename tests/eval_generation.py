@@ -16,13 +16,13 @@ import argparse
 from pathlib import Path
 import time
 
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 from .utils.load_aziende_data_dicts import load_company_dicts
 from .utils.eval_accuracy import accuracy_overall
 
 # logging relative
 import logging
-from rag_info_extractor.common_logging import configure_logging
+from rag_info_extractor.utils.common_logging import configure_logging
 logger = logging.getLogger(__name__)
 
 
@@ -389,6 +389,8 @@ def write_summary(
 
 if __name__ == "__main__":
 
+    from rag_info_extractor.utils.load_config import cfgs
+
     # Parse args
     parser = argparse.ArgumentParser(
         description="Load dataset JSON files from ./data/<dataset_type> and build company dictionaries."
@@ -417,12 +419,12 @@ if __name__ == "__main__":
     # Load configs
     t0 = time.time()
 
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS:
+    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
@@ -453,7 +455,7 @@ if __name__ == "__main__":
         parent_page_contents: List[bytes | None] = doc_store_page_content.mget(list(map(str, keys))) 
         parent_metadatas: List[bytes | None] = doc_store_metadata.mget(list(map(str, keys)))
 
-        chunks: List[Document] = [
+        chunks: List[Document] = [ # type: ignore
                             Document(
                                 page_content=bytes.decode(p, encoding="utf-8"),
                                 metadata=json.loads(bytes.decode(m, encoding="utf-8"))
@@ -479,6 +481,7 @@ if __name__ == "__main__":
     # Load data dicts
     (
         companies_match_data,
+        companies_match_qa,
         companies_pred_qa,
         companies_raw_qa, #
         companies_raw_contexts,

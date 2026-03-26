@@ -1,5 +1,4 @@
 from langchain_core.documents import Document
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import AIMessage
 
@@ -9,7 +8,7 @@ import re
 import textwrap
 
 # from other modules
-from rag_info_extractor.llm_connector import OllamaLLM
+from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 # Logging
 import logging
@@ -66,15 +65,15 @@ def generate(
     prompt_content = prompt_content.replace("{context}", docs_content)
     prompt_content = prompt_content.replace("{question}", q)
     
-    answer: AIMessage = llm.invoke(
+    ai_answer: AIMessage = llm.invoke(
         output_format = "text",
         memory = prompt_content,
         num_predict = 500,
         temperature = 0
     ) # type: ignore
 
-    if isinstance(answer.content, str):
-        answer = answer.content.strip() 
+    if isinstance(ai_answer.content, str):
+        answer = ai_answer.content.strip() 
     else:
         answer = "Non ho trovato la risposta"
         
@@ -146,8 +145,9 @@ def generate_legacy():
 if __name__ == "__main__":
     import yaml, os, time
     from pathlib import Path
-    from rag_info_extractor.common_logging import configure_logging
+    from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
+    from rag_info_extractor.utils.load_config import cfgs
 
     t0 = time.time()
     
@@ -158,12 +158,12 @@ if __name__ == "__main__":
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     logger.info(f"Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
-    # CONFIG FILE SETTINGS:
-    cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    with open(cfg_path, "r", encoding="utf-8") as f:
-        configs = yaml.safe_load(f)
+    # # CONFIG FILE SETTINGS:
+    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
+    # with open(cfg_path, "r", encoding="utf-8") as f:
+    #     configs = yaml.safe_load(f)
 
-    cfgs = configs.get("args", {})
+    cfgs = cfgs.get("args", {})
 
     LLM_MODEL = cfgs.get("LLM_MODEL") 
 
@@ -198,6 +198,7 @@ if __name__ == "__main__":
 
     with open("output_temp", "w", encoding="utf-8") as f:
         f.write("## OUTPUT FOR: generator.py\n\n")
+        f.write(f"Date: {time.strftime('%Y-%m-%d  %H:%M:%S')}\n")
         f.write(f"Question: {QUESTION} \n")
         f.write(f"Answer: {answer}\n")
 

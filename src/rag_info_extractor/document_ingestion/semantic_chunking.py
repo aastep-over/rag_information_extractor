@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 # Python native
 from pathlib import Path
 import asyncio
-from typing import List, Dict
+from typing import List, Dict, Optional
 import os
 
 # logging relative
@@ -16,9 +16,11 @@ logger = logging.getLogger(__name__)
 
 def semantic_chunking(
     docs: List[Document],
-    embedding_func: HuggingFaceEmbeddings,
+    embedding_func,
     tokenizer, 
     splitter,
+    max_embed_tokens: int,
+    pages_joining_str: Optional[str],
     last_parent_id: int = -1,
     last_child_id: int = -1
 
@@ -31,6 +33,9 @@ def semantic_chunking(
         metadatas = [d.metadata for d in docs]
     )
 
+    # Remove chunks which contain only pages_joining_str or are empty
+    parent_chunks = [pc for pc in parent_chunks if (pc.page_content not in pages_joining_str if pages_joining_str else True) and (pc.page_content != "")]
+
     # Add chunk ids to parent_chunks
     for i, chunk in enumerate(parent_chunks):
         chunk.metadata["chunk_id"] = (last_parent_id + 1) + i
@@ -39,24 +44,44 @@ def semantic_chunking(
     children_chunks: List[Document] = []
     child_id = (last_child_id + 1)
     for p in parent_chunks:
-        sub = splitter.split_documents([p])
-        for ch in sub:
-            # calculate extra info
+        p_token_size = len(tokenizer.encode(p.page_content or ""))
+
+        if p_token_size <= max_embed_tokens:
+            ch = Document(page_content=p.page_content, metadata=p.metadata)
             start = ch.metadata.get("start_index", None)
             n_chars = len(ch.page_content or "")
-            n_toks = len(tokenizer.encode(ch.page_content or ""))
             ch.metadata.update({
                 "parent_id": p.metadata.get("chunk_id"),          # Necessary for parent chunk
                 "chunk_id": child_id,
                 "n_chars": n_chars,
-                "n_tokens": n_toks,
+                "n_tokens": p_token_size,
                 "pattern_name": "semantic"
             })
-            child_id += 1
             if start is not None:
-                ch.metadata["char_start"] = int(start)
-                ch.metadata["char_end"] = int(start) + n_chars
-            children_chunks.append(ch)   
+                    ch.metadata["char_start"] = int(start)
+                    ch.metadata["char_end"] = int(start) + n_chars
+
+            child_id += 1
+            children_chunks.append(ch)
+        else:
+            sub = splitter.split_documents([p])
+            for ch in sub:
+                # calculate extra info
+                start = ch.metadata.get("start_index", None)
+                n_chars = len(ch.page_content or "")
+                n_toks = len(tokenizer.encode(ch.page_content or ""))
+                ch.metadata.update({
+                    "parent_id": p.metadata.get("chunk_id"),          # Necessary for parent chunk
+                    "chunk_id": child_id,
+                    "n_chars": n_chars,
+                    "n_tokens": n_toks,
+                    "pattern_name": "semantic"
+                })
+                child_id += 1
+                if start is not None:
+                    ch.metadata["char_start"] = int(start)
+                    ch.metadata["char_end"] = int(start) + n_chars
+                children_chunks.append(ch)   
 
     return {
         "parent_chunks": parent_chunks,
@@ -66,9 +91,11 @@ def semantic_chunking(
 
 async def semantic_chunking_async(
     docs: List[Document],
-    embedding_func: HuggingFaceEmbeddings,
+    embedding_func,
     tokenizer,
-    splitter,
+    text_splitter,
+    max_embed_tokens: int,
+    pages_joining_str: Optional[str], 
     max_concurrency: int = 8,
     last_parent_id: int = -1,
     last_child_id: int = -1
@@ -81,20 +108,17 @@ async def semantic_chunking_async(
     # --- Split parents concurrently ---
     sem = asyncio.Semaphore(max_concurrency)
 
-    async def _split_parent(d: Document) -> List[Document]:
-        """Run parent splitting off-thread to avoid blocking the event loop."""
+    async def _chunk_one(d: Document) -> List[Document]:
+        """Run semantic parent splitting off-thread to avoid blocking the event loop."""
         async with sem:
             # split_documents expects a List[Document]
             return await asyncio.to_thread(semantic_chunker.create_documents, [d.page_content], [d.metadata])
     
-    parent_lists = await asyncio.gather(*[_split_parent(d) for d in docs])
-    parent_chunks: List[Document] = [pc for sub in parent_lists for pc in sub]
+    per_doc_chunks = await asyncio.gather(*[_chunk_one(d) for d in docs])
+    parent_chunks: List[Document] = [pc for sub in per_doc_chunks for pc in sub if (pc.page_content not in pages_joining_str if pages_joining_str else True) and (pc.page_content != "") ]
 
-    # don't include chunks with only text used for defining changing pages or is empty string
-    page_splitter_text = ("-"*30 + "THIS IS A CUSTOM END OF PAGE" + "-"*30) # joinging_str
-    filtered_parents: List[Document] = [d for d in parent_chunks if (d.page_content not in page_splitter_text) and (d.page_content != "")]
     # Add chunk id to parent chunks
-    for i, chunk in enumerate(filtered_parents):
+    for i, chunk in enumerate(parent_chunks):
         chunk.metadata["chunk_id"] = (last_parent_id + 1) + i
         chunk.metadata["pattern_name"] = "semantic"
 
@@ -115,8 +139,13 @@ async def semantic_chunking_async(
     async def _split_children_from_parent(p: Document) -> List[Document]:
         """Split one parent into children and compute metadata off-thread."""
         async with sem:
-            # 1) Split into child chunks (blocking)
-            subs: List[Document] = await asyncio.to_thread(splitter.split_documents, [p])
+            # 1) Split into child chunks if p_tokens > max_embed_tokens(blocking)
+            p_tokens = len(tokenizer.encode(p.page_content or ""))
+
+            if p_tokens > max_embed_tokens:
+                subs: List[Document] = await asyncio.to_thread(text_splitter.split_documents, [p])
+            else:
+                subs = [Document(page_content=p.page_content, metadata=p.metadata)]
 
             # 2) Reserve a global id range for these children
             base = await _reserve_child_ids(len(subs))
@@ -147,11 +176,11 @@ async def semantic_chunking_async(
 
             return await asyncio.to_thread(_compute_child_meta)
 
-    children_lists = await asyncio.gather(*[_split_children_from_parent(p) for p in filtered_parents])
+    children_lists = await asyncio.gather(*[_split_children_from_parent(p) for p in parent_chunks])
     children_chunks: List[Document] = [c for sub in children_lists for c in sub]
 
     return {
-        "parent_chunks": filtered_parents,
+        "parent_chunks": parent_chunks,
         "children_chunks": children_chunks,
     }
 
@@ -160,14 +189,15 @@ if __name__ == "__main__":
     from langchain_community.document_loaders import PyPDFLoader
     from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-    import fitz
+    import pymupdf
     from pathlib import Path
-    import yaml
-    import time
+    import time, datetime
     import argparse
+    from dotenv import load_dotenv
 
     from rag_info_extractor.utils.common_logging import configure_logging
     from rag_info_extractor.utils.load_config import cfgs
+    from rag_info_extractor.utils.embedder import HFEmbedder
 
     t0 = time.time()
 
@@ -180,13 +210,18 @@ if __name__ == "__main__":
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
+    MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     PDF_LOADER = cfgs.get("PDF_LOADER", "./")
+    PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) 
 
-
+    # Load env_vars
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+    EMBEDDING_MODEL_NAME_ENV = EMBEDDING_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+    EMBEDDING_MODEL_PATH = os.environ.get(EMBEDDING_MODEL_NAME_ENV, EMBEDDING_MODEL_NAME)
     
     # Load pdf
     docs: List[Document] = []
@@ -197,7 +232,7 @@ if __name__ == "__main__":
 
             with open(str(path), "rb") as fh:
                 data = fh.read()
-            doc = fitz.open(stream=data, filetype="pdf")
+            doc = pymupdf.open(stream=data, filetype="pdf")
 
             meta = doc.metadata if isinstance(doc.metadata, dict) else {}
             meta = {**meta, **{"source": Path(doc.name).name if doc.name else None, "total_pages": doc.page_count}}
@@ -219,24 +254,28 @@ if __name__ == "__main__":
     # Define text splitter and tokenizer
     max_chunk_size = 430
     max_chunk_overlap = 105
-    tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_PATH, use_fast=True)
     splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
             tokenizer,
             chunk_size=max_chunk_size,  # chunk size (tokens)
             chunk_overlap=max_chunk_overlap,  # chunk overlap (tokens)
             add_start_index=True,  # track index in original document
         )
-    embedding_func = HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
-        encode_kwargs={"normalize_embeddings": True}
-    )
+    embedding_func = HFEmbedder(normalize_embeddings=True)
+    # embedding_func = HuggingFaceEmbeddings(
+    #     model_name=EMBEDDING_MODEL_PATH,
+    #     encode_kwargs={"normalize_embeddings": True}
+    # )
     
     # Create Chunks
     logger.info("Creating Chunks...")
-    # chunks = asyncio.run(fixed_size_chunking_async(
-    #     child_splitter,
+    # chunks = asyncio.run(semantic_chunking_async(
     #     docs,
+    #     embedding_func,
     #     tokenizer,
+    #     splitter,
+    #     max_embed_tokens = MAX_EMBED_TOKENS,
+    #     pages_joining_str = PAGES_JOINING_STR, 
     #     max_concurrency = 8,
     #     last_parent_id = -1,
     #     last_child_id = -1
@@ -246,6 +285,8 @@ if __name__ == "__main__":
         embedding_func,
         tokenizer,
         splitter,
+        max_embed_tokens = MAX_EMBED_TOKENS,
+        pages_joining_str = PAGES_JOINING_STR, 
         last_parent_id = -1,
         last_child_id = -1
     )
@@ -258,7 +299,8 @@ if __name__ == "__main__":
 
     logger.info("Chunks created. Saving...")
     with open("output_temp", "w", encoding="utf-8") as f:
-        f.write("OUTPUT FOR semantic_chunking.py\n\n")
+        f.write("OUTPUT FOR semantic_chunking.py\n")
+        f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
         f.write("SEMANTIC-SIM-BASED Chunks: \n")
         
         f.write("PARENT CHUNKS: \n\n")

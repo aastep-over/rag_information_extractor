@@ -4,12 +4,17 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_core.vectorstores.base import VectorStoreRetriever
 from sentence_transformers import CrossEncoder
+from langchain_community.cross_encoders.base import BaseCrossEncoder
+from pydantic import BaseModel, Field
 
 # Python native
-from typing import List, Optional, Dict, TypedDict
+from typing import List, Optional, Dict, TypedDict, Tuple, Any
 import json
 import re
 from collections import Counter
+
+# from other modules
+from rag_info_extractor.utils.apis_connector import call_reranker_service
 
 # Logging
 import logging
@@ -62,8 +67,11 @@ def _similarity_margin(scores_sorted_desc: List[float], k_ref: int = 3) -> float
 
 
 
-# ------------ MAIN FUNCTIONS -----------------
-# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------  MAIN FUNCTIONS  ---------------------------------------------------------------
+# ---------------------------------------------------------------                  ---------------------------------------------------------------
+
+
+## 1. ---------------------- CROSS-ENCODER RE-RANKER ----------------------------
 
 class _Output_cross_encode_rerank(TypedDict):
     context: List[Document]
@@ -72,7 +80,7 @@ class _Output_cross_encode_rerank(TypedDict):
     re_rank_debug: Dict
 
 def cross_encode_rerank(
-    re_ranker: CrossEncoder, 
+    # re_ranker: CrossEncoder, 
     contexts: List[Document],
     question: str,
     doc_store_large_chunks_path: Optional[str],
@@ -101,11 +109,16 @@ def cross_encode_rerank(
                 re_rank_debug = {}
             )
         
- 
+
         query = question
         context_candidates = contexts
-        pairs = [(query, d.page_content) for d in context_candidates]
-        scores = re_ranker.predict(pairs, batch_size=2, show_progress_bar=False)
+
+        # pairs = [(query, d.page_content) for d in context_candidates]
+        # scores = re_ranker.predict(pairs, batch_size=2, show_progress_bar=False)
+        scores = call_reranker_service(
+            query = question,
+            documents = [d.page_content for d in context_candidates]
+        ) or []
 
         # sort indices by score (desc)
         order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
@@ -264,7 +277,33 @@ def cross_encode_rerank(
             re_rank_debug = re_rank_debug
         )
 
+# --------------------------      XXX                    ----------------------------
 
+
+## 2. ---------------------- FAST RETRIEVER + RE-RANKER ----------------------------
+
+class ReRankerBaseCE(BaseModel, BaseCrossEncoder):
+
+    """Implement Re-ranker for fast_retrieve_and_rerank node"""
+
+    def __init__(self, **kwargs: Any):
+        """Initialize the sentence_transformer."""
+        super().__init__(**kwargs)
+
+    def score(self, text_pairs: List[Tuple[str, str]]) -> List[float] | None:
+        """Compute similarity scores using a cross-encoder model.
+
+        Args:
+            text_pairs: The list of text text_pairs to score the similarity.
+
+        Returns:
+            List of scores, one for each pair.
+        """
+        sep_func = lambda x: (x[0][0], [x[i][1] for i in range(len(x))])
+        query, documents = sep_func(text_pairs)
+        scores = call_reranker_service(query, documents)
+        
+        return scores
 
 class _Output_faster_retrieve_and_rerank(TypedDict):
     context: List[Document]
@@ -273,7 +312,7 @@ class _Output_faster_retrieve_and_rerank(TypedDict):
 
 def faster_retrieve_and_rerank(
     query: str,
-    compressor: CrossEncoderReranker,
+    # compressor: CrossEncoderReranker,
     retriever: VectorStoreRetriever,
     azienda: str = "",
     top_n: int = 4,
@@ -287,6 +326,8 @@ def faster_retrieve_and_rerank(
         """
         logger.info("\n --------------- NODE: faster__retrieve_and_rerank__ ------------------------\n")###
 
+        compressor = CrossEncoderReranker(model=ReRankerBaseCE(), top_n=8)
+
         compression_retriever = ContextualCompressionRetriever(
             base_compressor=compressor, base_retriever=retriever
             )
@@ -298,7 +339,10 @@ def faster_retrieve_and_rerank(
                 k = top_n
             )
         else:
-            docs = compression_retriever.invoke(query)
+            docs = compression_retriever.invoke(
+                query,
+                k = top_n
+            )
         
         # Remove duplicate chunks
         ids_docs_already_included = []
@@ -350,8 +394,9 @@ def faster_retrieve_and_rerank(
 # ------------------------ For debugging the script ---------------------------------------------
 def main(functions_to_run: List[str]):
     # Load Vector and Doc store
-    embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
-                                  encode_kwargs={"normalize_embeddings": True})
+    # embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
+    #                               encode_kwargs={"normalize_embeddings": True})
+    embedding = HFEmbedder(normalize_embeddings=True)
     vector_store = Chroma(embedding_function=embedding,
                         persist_directory=VECTOR_STORE_PATH,
                         collection_name="pdf_chunks")
@@ -387,7 +432,7 @@ def main(functions_to_run: List[str]):
     if "cross_encode_rerank" in functions_to_run:
         logger.info("Re-Ranking docs via Cross-Encode-Reranker...")
         output = cross_encode_rerank(
-            re_ranker = re_ranker, 
+            # re_ranker = re_ranker, 
             contexts = retrieval_output.get("context", []),
             question = QUESTION,
             # doc_store_page_content = doc_store_page_content,
@@ -402,10 +447,10 @@ def main(functions_to_run: List[str]):
 
     if "faster_retrieve_and_rerank" in functions_to_run:
         # Run faster (cross-encode) reranker
-        fast_re_ranker = CrossEncoderReranker(model=HuggingFaceCrossEncoder(model_name=RERANKER_MODEL), top_n=8) # re_ranker compressor for fast retrieve + re_rank+ compression
+        # fast_re_ranker = CrossEncoderReranker(model=HuggingFaceCrossEncoder(model_name=RERANKER_MODEL), top_n=8) # re_ranker compressor for fast retrieve + re_rank+ compression
         fast_reranker_output = faster_retrieve_and_rerank(
             query = QUERY,
-            compressor = fast_re_ranker,
+            # compressor = fast_re_ranker,
             retriever = retriever,
             azienda = AZIENDA,
             top_n = 4
@@ -466,7 +511,8 @@ def main(functions_to_run: List[str]):
 if __name__ == "__main__":
     import yaml, os, time, datetime
     from pathlib import Path
-    from langchain_huggingface import HuggingFaceEmbeddings
+    # from langchain_huggingface import HuggingFaceEmbeddings
+    from rag_info_extractor.utils.embedder import HFEmbedder
     from langchain_chroma import Chroma
     from langchain_community.cross_encoders import HuggingFaceCrossEncoder
     from rag_info_extractor.utils.common_logging import configure_logging
@@ -485,10 +531,6 @@ if __name__ == "__main__":
     logger.info(f"Logging for {'-'*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
     # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")

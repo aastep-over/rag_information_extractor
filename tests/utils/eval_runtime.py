@@ -24,6 +24,8 @@ def runtime_per_company(runtimes_data: Dict[str, Dict[str, Dict[str, str]]]) -> 
     }
 
 def runtime_overall(companies_runtimes: Dict[str, Any]) -> Dict[str, Any]:
+    """Calculates avg runtimes (overall, per_group, per_company) for all companies."""
+    
     per_company = {name: runtime_per_company(md) for name, md in companies_runtimes.items()}
 
     # Aggregate overall

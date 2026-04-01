@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from transformers import AutoModel
 from sentence_transformers import CrossEncoder
 
-# Detect if generated answer is in italiano
+# Detect if generated answer is in italiano for verifier node
 from langdetect import detect 
 from langdetect import DetectorFactory
 DetectorFactory.seed = 0 # probablistic algo.
@@ -28,6 +28,7 @@ from rag_info_extractor.rag_pipeline.analyze_query import analyze_query, Search
 from rag_info_extractor.rag_pipeline.retrieve import retrieve  
 from rag_info_extractor.rag_pipeline.re_ranker import cross_encode_rerank, faster_retrieve_and_rerank
 from rag_info_extractor.rag_pipeline.generator import generate
+from rag_info_extractor.utils.apis_connector import call_pruner_service
 # from rag_info_extractor.rag_pipeline.verify import verify
 
 # logging relative
@@ -46,7 +47,6 @@ class State(TypedDict):
     context: List[Document]
     rerank_debug: Dict
     answer: str
-    # search_doc: Literal["yes", "no"]
 
 
 
@@ -55,12 +55,11 @@ class RAGPipeline:
     def __init__(
         self,
         db_retriever: VectorStoreRetriever,
-        reranker_model: str, 
         azienda_name_records: List[str],
         llm_model: str,
         doc_store_path: Optional[str],
         pages_joining_str: Optional[str],
-        pruner_model: Optional[str] = None, 
+        
     ):
         """
         Args:
@@ -83,37 +82,6 @@ class RAGPipeline:
         # Set azienda names in db
         self.azienda_name_records = azienda_name_records
 
-        # Pruner
-        if pruner_model:
-            pruner_hash = Path(pruner_model).name
-            if (len(pruner_hash) == 40) and (pruner_hash.isalnum()): # hash value
-                self.pruner = AutoModel.from_pretrained(
-                    pruner_model,
-                    revision=pruner_hash,  # <-- pin to exact commit
-                    trust_remote_code=True,
-                    local_files_only=True
-                )
-            else:
-                self.pruner = AutoModel.from_pretrained(
-                    pruner_model,
-                    trust_remote_code=True,
-                    # local_files_only=True
-                )
-        else:
-            self.pruner = None
-
-        # Re-ranker
-        self.re_ranker = CrossEncoder(reranker_model, device="cpu", max_length=512) #HuggingFaceCrossEncoder(model_name=RERANKER_MODEL, model_kwargs={"device": "cpu"})
-        self.fast_re_ranker = CrossEncoderReranker(model=HuggingFaceCrossEncoder(model_name=reranker_model), top_n=8) # re_ranker compressor for fast retrieve + re_rank+ compression
-
-        # # Verifier
-        # self.verifier = FeverVerifier(
-        #     model_name="facebook/bart-large-mnli",  
-        #     threshold=0.65,                         # raise to be stricter; lower to be more permissive
-        #     max_claims=8,
-        #     max_evidence_chars=3500
-        # )
-
         # Other inits
         self.pages_joining_str = pages_joining_str 
         
@@ -123,7 +91,7 @@ class RAGPipeline:
             .add_node("analyze_query", self.run_analyze_query)           
             .add_node("retrieve", self.run_retrieve)
             .add_node("cross_encode_rerank", self.run_cross_encode_rerank)
-            # .add_node("pruning", self.run_pruning)
+            .add_node("pruning", self.run_pruning)
             .add_node("generate", self.run_generate)
             .add_node("faster_retrieve_and_rerank", self.run_faster_retrieve_and_rerank)
             # .add_node("verify", self.run_verify)    
@@ -144,8 +112,9 @@ class RAGPipeline:
         # graph.add_edge("retrieve", "generate")
         # graph.add_edge("faster_retrieve_and_rerank", "generate")
 
-        graph.add_edge("generate", END)
         # graph.add_edge("generate", "verify")
+        
+        graph.add_edge("generate", END)
         # graph.add_edge("verify", END)
  
         self.graph = graph.compile()
@@ -154,10 +123,10 @@ class RAGPipeline:
         self.latency = {k: "0.00 s" for k in
                         ["analyze_query","retrieve","pruning","generate", "re_ranking", "faster_retrieve_and_rerank", "overall"]}
         # For storing responses for testing
-        self.retrieved_docs_ids: Dict[str, List[int]] = {} #[]
-        self.re_ranked_docs_ids: Dict[str, List[int]] = {}#[]
-        self.retrieved_docs_texts: Dict[str, List[str]] = {} #[]
-        self.re_ranked_docs_texts: Dict[str, List[str]] = {}#[]
+        self.retrieved_docs_ids: Dict[str, List[int]] = {} 
+        self.re_ranked_docs_ids: Dict[str, List[int]] = {}
+        self.retrieved_docs_texts: Dict[str, List[str]] = {}
+        self.re_ranked_docs_texts: Dict[str, List[str]] = {}
         self.optimized_query: Dict[str, str] = {}
 
     def reset_latency(self):
@@ -201,12 +170,11 @@ class RAGPipeline:
         output_retrieve = retrieve(
             retriever = self.retriever,
             query = query,
-            # doc_store_page_content = self.doc_store_page_content, 
-            # doc_store_metadata = self.doc_store_metadata,
             doc_store_large_chunks_path = self.doc_store_path,
             azienda = azienda,
             pages_joining_str = self.pages_joining_str,
-            retrieve_parents = False
+            retrieve_parents = False,
+            save_full_chunks = False
         )
 
         retrieved_docs = output_retrieve.get("context", [])
@@ -222,13 +190,15 @@ class RAGPipeline:
         # Execute pruning
         ori_context = [c.page_content for c in state['context']]
         t1 = time.time()
-        if self.pruner:
-            pruned = self.pruner.process([state['question']], [ori_context], reorder=True, top_k=5, threshold=0.05)
-        else:
-            pruned = {"pruned_context": ori_context}
+
+        pruned_docs = call_pruner_service(
+            query = state['question'],
+            documents = ori_context
+        )
+
         self.latency['pruning'] = f"{time.time() - t1:.3f} s"
 
-        return {"context": [Document(page_content=c) for c in pruned['pruned_context'][0]]}
+        return {"context": [Document(page_content=c) for c in pruned_docs]}
 
     # --------- RE-RANKER ----------
     def run_cross_encode_rerank(self, state: State) -> Dict[str, List[Document]]:
@@ -236,28 +206,18 @@ class RAGPipeline:
     
         t1 = time.time()
 
-        # Run the re_ranker function
-        if self.re_ranker:
-            re_ranker_output = cross_encode_rerank(
-                re_ranker = self.re_ranker, 
-                contexts = state["context"],
-                question = state["question"],
-                doc_store_large_chunks_path = self.doc_store_path,
-                k_min = 2,
-                k_max = 5,
-                rel_thresh = 0.4,
-                max_promoted_parents = 3,
-                use_parent_heuristics = False,
-                save_full_chunks = False
-            )
-        else:
-            re_ranker_output = {
-                "context": [],
-                "re_ranked_docs_ids": {},
-                "re_ranked_docs_texts": {},
-                "re_rank_debug": {}
-            }
-        
+        re_ranker_output = cross_encode_rerank(
+            contexts = state["context"],
+            question = state["question"],
+            doc_store_large_chunks_path = self.doc_store_path,
+            k_min = 2,
+            k_max = 5,
+            rel_thresh = 0.4,
+            max_promoted_parents = 3,
+            use_parent_heuristics = False,
+            save_full_chunks = False
+        )
+
         re_ranked_docs = re_ranker_output.get("context", [])
         self.re_ranked_docs_ids = re_ranker_output.get("re_ranked_docs_ids", {})
         self.re_ranked_docs_texts = re_ranker_output.get("re_ranked_docs_texts", {})
@@ -277,22 +237,14 @@ class RAGPipeline:
         query = state["query"].query
         azienda = state["query"].azienda
 
-        if self.fast_re_ranker:
-            output = faster_retrieve_and_rerank(
-                query = query,
-                compressor = self.fast_re_ranker,
-                retriever = self.retriever,
-                azienda = azienda,
-                top_n = 4,
-                pages_joining_str = self.pages_joining_str,
-                save_full_chunks = False
-            )
-        else:
-            output = {
-                "context": [],
-                "docs_ids": {},
-                "docs_texts": {}
-            }
+        output = faster_retrieve_and_rerank(
+            query = query,
+            retriever = self.retriever,
+            azienda = azienda,
+            top_n = 4,
+            pages_joining_str = self.pages_joining_str,
+            save_full_chunks = False
+        )
 
         docs = output.get("context", [])
         self.re_ranked_docs_ids = output.get("docs_ids", {})
@@ -332,15 +284,16 @@ class RAGPipeline:
 
 
     def run_verify(self, state: State):
-    #     FALLBACK_IT = "Non ho trovato la risposta nei documenti forniti"
+        # TODO: Implement verifying logic
+        # FALLBACK_IT = "Non ho trovato la risposta nei documenti forniti"
 
-    #     draft_ans = state.get("answer", "") or ""
-    #     contexts = state.get("contexts", []) or []
-    #     verdict = self.verifier.verify(draft_ans, contexts)
-    #     # Single check → return immediately with either original or fallback
-    #     final_ans = draft_ans if verdict["all_supported"] else FALLBACK_IT
+        # draft_ans = state.get("answer", "") or ""
+        # contexts = state.get("contexts", []) or []
+        # verdict = self.verifier.verify(draft_ans, contexts)
+        # Single check → return immediately with either original or fallback
+        # final_ans = draft_ans if verdict["all_supported"] else FALLBACK_IT
         
-    #     return {"answer": final_ans}
+        # return {"answer": final_ans}
         pass
 
     def get_response(self, query: str) -> str:
@@ -358,7 +311,7 @@ class RAGPipeline:
             t1 = time.time()
             response = self.graph.invoke({"question": query}) # type: ignore
             self.latency['overall'] = f"{time.time() - t1:.3f} s"
-            return response['answer']  # 'response' is now a string containing the 'result'
+            return response['answer']  
         except Exception as e:
             print(f"Exception: {e}")
             return ""
@@ -377,17 +330,14 @@ if __name__ == "__main__":
 
     # logging relative
     import logging
+    from rag_info_extractor.utils.embedder import HFEmbedder
     from rag_info_extractor.utils.common_logging import configure_logging
     from rag_info_extractor.utils.load_config import cfgs
     logger = logging.getLogger(__name__)
 
     t0 = time.time()
 
-    # # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
+    # CONFIG FILE SETTINGS:
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
@@ -413,10 +363,10 @@ if __name__ == "__main__":
 
 
     logger.info(f'Logging for {"-"*30} rag_information_extractor/scripts/rag_pipeline.py') ###
-
+    logger.info(f'LLM model used: {LLM_MODEL}')
+    
     # Load Vector and Doc store
-    embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
-                                  encode_kwargs={"normalize_embeddings": True})
+    embedding = HFEmbedder(normalize_embeddings=True)
     vector_store = Chroma(embedding_function=embedding,
                         persist_directory=VECTOR_STORE_PATH,
                         collection_name="pdf_chunks")
@@ -435,8 +385,8 @@ if __name__ == "__main__":
     try:
         rag_obj = RAGPipeline(
             db_retriever = retriever,
-            pruner_model = PRUNER_MODEL,
-            reranker_model = RERANKER_MODEL, 
+            # pruner_model = PRUNER_MODEL,
+            # reranker_model = RERANKER_MODEL, 
             azienda_name_records = azienda_name_records,
             llm_model = LLM_MODEL,
             doc_store_path = DOC_STORE_LARGE_CHUNKS_PATH,

@@ -119,15 +119,21 @@ def percentage_of_fields_extracted(combined_pred_data: Dict[str, Any], combined_
             raw_data = combined_raw_data[company][group_name]['values']
             pred_data = combined_pred_data[company][group_name]['output']
 
-            # Calculate total num of non-empty fields in raw data
-            for sg_name, sg_data in raw_data.items():
-                for k, v in sg_data.items():
-                    if v: non_empty_raw_fields += 1
+            # # Calculate total num of non-empty fields in raw data
+            # for sg_name, sg_data in raw_data.items():
+            #     for k, v in sg_data.items():
+            #         if v: non_empty_raw_fields += 1
             
-            # Calculate total num of non-empty fields in pred data
-            for sg_name, sg_data in pred_data.items():
-                for k, v in sg_data.items():
-                    if v: extracted_fields += 1
+            # # Calculate total num of non-empty fields in pred data
+            # for sg_name, sg_data in pred_data.items():
+            #     for k, v in sg_data.items():
+            #         if v: extracted_fields += 1
+            
+            for sg_name in raw_data.keys():
+                for k in raw_data[sg_name].keys():
+                    if raw_data[sg_name][k]: non_empty_raw_fields += 1
+                    if (pred_data[sg_name][k] and raw_data[sg_name][k]): extracted_fields += 1
+
 
     if non_empty_raw_fields == 0:
         return 0.0

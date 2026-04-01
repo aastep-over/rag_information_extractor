@@ -11,8 +11,11 @@ import json
 
 # from other modules
 from rag_info_extractor.document_ingestion.load_docs import aload_pdfs
+from rag_info_extractor.utils.embedder import HFEmbedder
 
-
+# logging relative
+import logging
+logger = logging.getLogger(__name__)
 
 
 def load_docs_from_dir(
@@ -73,11 +76,13 @@ def embed_child_chunks(
     os.makedirs(vector_store_dir, exist_ok=True)
 
     # Save children chunks in vector db
+    
+    embedding_func = HFEmbedder(normalize_embeddings=True) # TODO: Enforce model checking when initialized in class HFEmbedder
     try:
-        embedding_func = HuggingFaceEmbeddings(
-            model_name = HF_embedding_model_name, # HuggingFace embedding model
-            encode_kwargs = {"normalize_embeddings": True}
-        )
+        # embedding_func = HuggingFaceEmbeddings(
+        #     model_name = HF_embedding_model_name, # HuggingFace embedding model
+        #     encode_kwargs = {"normalize_embeddings": True}
+        # )
         vector_store = Chroma(
             embedding_function = embedding_func,
             persist_directory = vector_store_dir,
@@ -85,8 +90,7 @@ def embed_child_chunks(
         )
         asyncio.run(vector_store.aadd_documents(children_chunks))
         
-        logger.info("Embeddings Created.")
-    
+        logger.info(f"Embeddings Created and stored in {vector_store_dir}")
     except OSError:
         logger.exception("ERROR! (Unable to load embedding model). Enter model name from HuggingFace")
 
@@ -102,6 +106,7 @@ if __name__ == "__main__":
     import yaml
     import time
     import argparse
+    from dotenv import load_dotenv
 
     # logging relative
     import logging
@@ -113,25 +118,26 @@ if __name__ == "__main__":
     t0 = time.time()
 
     # # CONFIG FILE SETTINGS
-    # cfg_path = Path("D:/Users/yye7607/Documents/work/Stage Amjad Ali/RAG/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
-    DATASET_TYPE = "TEST"#cfgs.get("DATASET_TYPE") # =============================== XXX NEED TO BE CHANGED ==================================================
+    DATASET_TYPE = cfgs.get("DATASET_TYPE") 
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE)
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/large_chunks_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
     VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/vector_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
+
+    # Load env_vars
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+    EMBEDDING_MODEL_NAME_ENV = EMBEDDING_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+    EMBEDDING_MODEL_PATH = os.environ.get(EMBEDDING_MODEL_NAME_ENV, EMBEDDING_MODEL_NAME)
 
     # configure logging
     parser = argparse.ArgumentParser()
@@ -145,7 +151,7 @@ if __name__ == "__main__":
     parent_chunks, children_chunks = load_docs_from_dir(
         dataset_dir = DATASET_DIR,
         chunks_type = CHUNKS_TYPE,
-        HF_embedding_model_name = EMBEDDING_MODEL_NAME,
+        HF_embedding_model_name = EMBEDDING_MODEL_PATH,
         evaluator_llm = EVALUATOR_LLM,
         llm_model = LLM_MODEL,
         max_embed_tokens = MAX_EMBED_TOKENS,
@@ -166,7 +172,7 @@ if __name__ == "__main__":
     if children_chunks:
         embed_child_chunks(
             children_chunks,
-            HF_embedding_model_name = EMBEDDING_MODEL_NAME,
+            HF_embedding_model_name = EMBEDDING_MODEL_PATH,
             vector_store_dir = VECTOR_STORE_PATH
         )
 

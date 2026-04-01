@@ -8,8 +8,13 @@ from typing import Dict, Any, List, Tuple, Optional, Literal
 import json
 import copy
 import re
-import yaml
+import time
 from pathlib import Path
+
+# GEMINI API prova
+from google import genai
+from google.api_core import exceptions #429 RESOURCE_EXHAUSTED.
+from tenacity import retry, wait_random_exponential
 
 # Logging
 import logging
@@ -107,7 +112,7 @@ def compute_context_sums(match_dict: Dict[str, Any], present_fields: Optional[Di
 
 def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_type: Literal["raw", "pred"]):
     """
-    Converts the following dicts to --> MATCH TEMPLATE: (removes the key values and output)
+    Converts the following dicts to --> MATCH TEMPLATE: (removes the keys: values and output)
     
     combined_raw_json: 
         {
@@ -200,7 +205,7 @@ class FieldDecision(BaseModel):
 EVAL_SYSTEM = (
     "Sei un valutatore severo ma equo per un singolo campo.\n"
     "Stabilisci se PREDICTED corrisponde semanticamente a REFERENCE:\n"
-    "- Accetta differenze banali di formattazione (1,000 vs 1000; 31/12/2024 vs 2024-12-31).\n"
+    "- Accetta differenze banali di formattazione (1,000 vs 1000; 31/12/2024 vs 2024-12-31; 31 dicembre vs 31 dicembre di ogni anno/anno solare; Indeterminata/o vs tempo indeterminato; 10% vs 10 vs dieci per cento).\n"
     "- yes/true/sì → True; no/false → False.\n"
     "- Per numeri/percentuali/durate, confronta il valore sottostante.\n"
     "- Se uno dei due valori è mancante mentre l’altro è presente, è una mancata corrispondenza.\n"
@@ -226,6 +231,42 @@ def build_field_chain(llm) -> Any:
     return prompt | llm | parser
 
 
+# =======================================
+# 4.5) Evaluation with GOOGLE API
+# =======================================
+@retry(wait=wait_random_exponential(min=1, max=60))
+def evaluate_with_GEMINI(
+    path: Tuple[str, ...],
+    reference: str,
+    predicted: str,
+    system_prompt: str,
+    user_prompt: str,
+
+):
+
+    user_prompt = user_prompt.replace("{field_path}", " / ".join(path))
+    user_prompt = user_prompt.replace("{reference}", reference)
+    user_prompt = user_prompt.replace("{predicted}", predicted)
+
+    content = f"SYSTEM:\n{system_prompt} \n\nUSER:\n{user_prompt}"
+
+    # The client gets the API key from the environment variable `GEMINI_API_KEY`.
+    client = genai.Client()
+
+    # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
+    response = client.models.generate_content(
+            model="gemma-3-27b-it", contents=content
+        )
+
+    match_true = re.match(r"true.*", response.text.strip(), re.IGNORECASE) # type: ignore
+    match_false = re.match(r"false.*", response.text.strip(), re.IGNORECASE) # type: ignore
+
+    if match_true:
+        return True
+    if match_false:
+        return False
+    
+    return "N/A"
 
 # =======================================================
 # 5) Main function: field-by-field with one LLM call each
@@ -235,6 +276,8 @@ def evaluate_pred_fieldwise(
     predicted_obj: Dict[str, Any],
     log_file: Path,
     present_fields: Optional[Dict[str, List[str]]] = None,
+    use_gemini: bool = False,
+
 ) -> Dict[str, Any]:
     """
     Returns a filled match_data dict with 1/0 per leaf.
@@ -278,6 +321,14 @@ def evaluate_pred_fieldwise(
                 set_by_path(match_dict, path, 1)
                 continue
             
+            # Fast path 2: if ref_v is empty and pred_v says something relevant to missing/not found
+            not_found_pattern = r"\b(?:non\s+(?:specificat[oa]|indicat[oa]|definit[oa]|dichiarat[oa]|riportat[oa]|disponibil[ea]|menzionat[oa]|fornit[oa]|trovat[oa]|individuat[oa]|reperit[oa]|riscontrat[oa]|rinvenut[oa])|nessun[oa]?\s+(?:risultat[oa]|rispost[ae]?|riscontr[oi]|element[oi]|dat[oi])|assenza\s+di\s+(?:risultat[oi]|rispost[ae]?|riscontr[oi]|informazion[ei])|informazion[ei]\s+(?:mancant[ei]|indisponibil[ei]|assent[ei])|dat[oi]\s+mancant[ei]|ricerca\s+(?:infruttuos[ao]|senza\s+esito|priva\s+di\s+esiti)|risposta\s+non\s+pervenuta)\b"
+            if not ref_v and re.search(not_found_pattern, pred_v, re.IGNORECASE):
+                f.write("Fast Path 2...\n")
+                print("Fast Path 2...")###
+                set_by_path(match_dict, path, 1)
+                continue
+            
             # If pred_v empty or ref_v empty while other is not then set it to 0 -> no LLM call (since otherwise prev. if-statement will be executed)
             if not ref_v:
                 f.write("NOT MATCHED...\n")
@@ -290,27 +341,51 @@ def evaluate_pred_fieldwise(
                 set_by_path(match_dict, path, 0)
                 continue
         
+            if use_gemini:
+                try:
+                    decision_gemini = evaluate_with_GEMINI(
+                        path=path,
+                        reference=ref_v,
+                        predicted=pred_v,
+                        system_prompt=EVAL_SYSTEM,
+                        user_prompt=EVAL_USER,
+                    )
+                    decision: FieldDecision = FieldDecision(match=decision_gemini) if decision_gemini != "N/A" else FieldDecision(match=False) # type: ignore
+                except Exception as e:
+                    # If parsing fails, be conservative
+                    f.write(f"WARNING!: Exception: {e}")
+                    print(f"WARNING!: Exception: {e}")
+                    # close file and break code when limit hits
+                    f.close()
+                    raise Exception(e)
+                    # set_by_path(match_dict, path, 0)
+                else:
+                    f.write(f"Decision: {decision_gemini}") 
+                    print(decision_gemini)###
+                    set_by_path(match_dict, path, 1 if decision.match else 0)
+            else:
+                # LLM decision (single field)
+                payload = {
+                    "field_path": " / ".join(path),
+                    "reference": json.dumps(ref_v, ensure_ascii=False) if isinstance(ref_v, (dict, list)) else ref_v,
+                    "predicted": json.dumps(pred_v, ensure_ascii=False) if isinstance(pred_v, (dict, list)) else pred_v,
+                }
 
-            # LLM decision (single field)
-            payload = {
-                "field_path": " / ".join(path),
-                "reference": json.dumps(ref_v, ensure_ascii=False) if isinstance(ref_v, (dict, list)) else ref_v,
-                "predicted": json.dumps(pred_v, ensure_ascii=False) if isinstance(pred_v, (dict, list)) else pred_v,
-            }
-
-            try:
-                decision: FieldDecision = chain.invoke(payload)
-                f.write(f"Decision: {decision}")
-                print(decision)###
-                set_by_path(match_dict, path, 1 if decision.match else 0)
-            except Exception as e:
-                # If parsing fails, be conservative
-                f.write(f"WARNING!: Exception: {e}")
-                print(f"WARNING!: Exception: {e}")
-                set_by_path(match_dict, path, 0)
+                try:
+                    decision: FieldDecision = chain.invoke(payload)
+                    f.write(f"Decision: {decision}")
+                    print(decision)###
+                    set_by_path(match_dict, path, 1 if decision.match else 0)
+                except Exception as e:
+                    # If parsing fails, be conservative
+                    f.write(f"WARNING!: Exception: {e}")
+                    print(f"WARNING!: Exception: {e}")
+                    set_by_path(match_dict, path, 0)
             
-            # write space
-            f.write("\n\n")
+            f.write("\n")
+
+        # write space
+        f.write("\n\n")
 
 
     # Optional Context counters
@@ -322,6 +397,7 @@ def eval_for_all_aziende(
     pred_data: Dict[str, Any],
     output_dir: Path,
     present_fields: Optional[Dict[str, List[str]]] = None,
+    use_gemini: bool = False,
 ) -> None:
     """
     Evaluate the Predictions for every Azienda present in pred_data.json using llm as a judge, assigning match score
@@ -336,10 +412,19 @@ def eval_for_all_aziende(
     LOG_FILE = output_dir / "decision_logs.txt"
     MATCH_SCORE_FILE = output_dir / "match_scores.json"
     
+    with open(LOG_FILE, "w", encoding="utf-8") as f: # use the write mode to delete previous log for this test
+        if use_gemini:
+            f.write(f"EVALUATOR_LLM: GEMINI\n")
+            print("Evaluatin using GEMINI...")
+        else:
+            f.write(f"EVALUATOR_LLM: {EVALUATOR_LLM}\n")
+        f.write(f"Date: {time.strftime('%Y-%m-%d  %H:%M:%S')}\n")
+
     match_data_azienda = {}
     for azienda in raw_data.keys():
         print(f"Azienda: {azienda}")
         with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write("="*80 + "\n")
             f.write(f"Azienda: {azienda}\n")
 
         raw_vals = raw_data[azienda]
@@ -349,6 +434,7 @@ def eval_for_all_aziende(
             predicted_obj=pred_v,
             log_file=LOG_FILE,
             present_fields=present_fields,
+            use_gemini=use_gemini
         )
         
         match_data_azienda[azienda] = match_data
@@ -370,7 +456,7 @@ if __name__ == "__main__":
         description="Load paths to combined_raw_json and pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json",
+        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True
@@ -380,6 +466,12 @@ if __name__ == "__main__":
         type=str,
         help="Path(relative) to pred_json file which is to be evaluated",
         required=True
+    )
+    parser.add_argument(
+        "--use-gemini", # --use-gemini True
+        type=bool,
+        help="Path(relative) to pred_json file which is to be evaluated",
+        default=False
     )
     args = parser.parse_args()
 
@@ -399,7 +491,12 @@ if __name__ == "__main__":
     
     # Match and score pred vs raw and save the results
     logger.info("Evaluating Predicted output w.r.t Raw output using LLM as a judge.")
-    eval_for_all_aziende(raw_data, pred_data, EVAL_OUTPUT_DIR)
+    eval_for_all_aziende(
+        raw_data,
+        pred_data,
+        EVAL_OUTPUT_DIR,
+        use_gemini=args.use_gemini
+    )
 
     
     logger.info(f"Evaluation completed. Results saved to: \t {EVAL_OUTPUT_DIR}")

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-import fitz # for pymupdf
+import pymupdf # for pymupdf
 
 
 # Python native
@@ -19,6 +19,7 @@ from rag_info_extractor.document_ingestion.custom_chunking import custom_chunkin
 from rag_info_extractor.document_ingestion.fixed_size_chunking import fixed_size_chunking_async
 from rag_info_extractor.document_ingestion.semantic_chunking import semantic_chunking_async
 from rag_info_extractor.utils.llm_connector import OllamaLLM
+from rag_info_extractor.utils.embedder import HFEmbedder
 
 # Logging
 import logging
@@ -135,7 +136,7 @@ def _load_pdf_sync(
     if pdf_loader == "pymupdf":
         with open(str(path), "rb") as fh:
             data = fh.read()
-        doc = fitz.open(stream=data, filetype="pdf")
+        doc = pymupdf.open(stream=data, filetype="pdf")
 
         meta = doc.metadata if isinstance(doc.metadata, dict) else {}
         meta = {**meta, **{"source": path.name, "total_pages": doc.page_count}}
@@ -339,15 +340,17 @@ async def aload_pdfs(
     
     elif chunks_type == "semantic_chunks":
         logger.info("Trying to Split using 'Semantic Chunking'...")
-
-        embedding_func = HuggingFaceEmbeddings(
-            model_name=HF_embedding_model_name,
-            encode_kwargs={"normalize_embeddings": True}
-        )
+        # embedding_func = HuggingFaceEmbeddings(
+        #     model_name=HF_embedding_model_name,
+        #     encode_kwargs={"normalize_embeddings": True}
+        # )
+        embedding_func = HFEmbedder(normalize_embeddings=True)
 
         output = await semantic_chunking_async(
-            docs, embedding_func, tokenizer, child_splitter, max_concurrency=8
+            docs, embedding_func, tokenizer, child_splitter, max_embed_tokens=max_embed_tokens,
+            pages_joining_str=kwargs.get("pages_joining_str"), max_concurrency=8
         )
+        parent_chunks, children_chunks = output["parent_chunks"], output["children_chunks"]
         
     else:         
         output = await fixed_size_chunking_async(
@@ -366,8 +369,8 @@ if __name__ == "__main__":
 
     import os 
     import time
-    import yaml
     import argparse
+    from dotenv import load_dotenv
 
     from rag_info_extractor.utils.common_logging import configure_logging
     from rag_info_extractor.utils.load_config import cfgs
@@ -380,11 +383,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
 
-    # # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
+    # CONFIG FILE SETTINGS:
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
@@ -399,10 +398,15 @@ if __name__ == "__main__":
     
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     
+    # Load env_vars
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+    EMBEDDING_MODEL_NAME_ENV = EMBEDDING_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+    EMBEDDING_MODEL_PATH = os.environ.get(EMBEDDING_MODEL_NAME_ENV, EMBEDDING_MODEL_NAME)
+
     logger.info(f"Loading the documents: {os.listdir(DATASET_DIR)}")
     output = asyncio.run(aload_pdfs(
         folder = DATASET_DIR,
-        HF_embedding_model_name = EMBEDDING_MODEL_NAME,
+        HF_embedding_model_name = EMBEDDING_MODEL_PATH,
         evaluator_llm = EVALUATOR_LLM,
         llm_model = LLM_MODEL,
         max_embed_tokens = MAX_EMBED_TOKENS,

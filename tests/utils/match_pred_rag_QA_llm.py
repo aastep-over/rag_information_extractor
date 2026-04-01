@@ -1,6 +1,8 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+from langchain_chroma import Chroma
+from langchain_core.vectorstores.base import VectorStoreRetriever
 from pydantic import BaseModel, Field
 
 # python native
@@ -8,11 +10,15 @@ from typing import Dict, Any, List, Tuple, Optional, Literal
 import json
 import copy
 import re
-import yaml
+import time
 from pathlib import Path
 
 # GEMINI API prova
 from google import genai
+from tenacity import retry, wait_random_exponential
+
+# from other modules
+from rag_info_extractor.utils.embedder import HFEmbedder
 
 # Logging
 import logging
@@ -131,6 +137,36 @@ def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_
 
     return match_template
 
+def convert_context_pred_json_to_match_template(context_pred_json: Dict[str, Any], context_type: Literal["retrieved_docs", "re_ranked_docs"]):
+    """
+    Converts the following dicts to --> MATCH TEMPLATE: (removes the key values and output)
+    
+    context_pred_json: 
+        {
+            'COMPENSO_DEGLI_AMMINISTRATORI': {
+                "context_type": {
+                        'Rimborso': {
+                            'parents': [...],
+                            'children': [...],
+                    },
+                    ...
+            },
+            'BILANCI_E_UTILI': {},
+            ...
+        }
+    """
+    match_template = {}
+    for group_name, group in context_pred_json.items():
+        match_template[group_name] = {}
+        if context_type == "retrieved_docs":
+            group_data = group.get("retrieved_docs", {"parents": [], "children": []})
+        elif context_type == "re_ranked_docs":
+            group_data = group.get("re_ranked_docs", {"parents": [], "children": []})
+        
+        match_template[group_name] = group_data
+
+    return match_template
+
 
 # ==========================================
 # 3) Lightweight value normalization helpers
@@ -215,6 +251,10 @@ def build_field_chain(llm) -> Any:
     return prompt | llm | parser
 
 
+# =======================================
+# 4.5) Evaluation with GOOGLE API
+# =======================================
+@retry(wait=wait_random_exponential(min=1, max=60))
 def evaluate_with_GEMINI(
     path: Tuple[str, ...],
     question: str,
@@ -225,13 +265,21 @@ def evaluate_with_GEMINI(
 ):
     
     # replace field, Question, Reference and Predicted in EVAL_USER prompt
-    question_nome_match = re.findall(r"(.*) Nome.*", question)
-    question_senza_nome = question_nome_match[0] if question_nome_match else ""
+    name_azienda = re.findall(r".*Nome della società: (.*)", question)
+    if name_azienda:
+        question_senza_nome = question.replace(f"Nome della società: {name_azienda[0]}", "")
+        reference_senza_nome = reference.replace(name_azienda[0], "<nome_azienda>")
+        predicted_senza_nome = predicted.replace(name_azienda[0], "<nome_azienda>")
+    else:
+        question_senza_nome = question
+        reference_senza_nome = reference
+        predicted_senza_nome = predicted
+        
 
     user_prompt = user_prompt.replace("{field_path}", " / ".join(path))
     user_prompt = user_prompt.replace("{question}", question_senza_nome)
-    user_prompt = user_prompt.replace("{reference}", reference)
-    user_prompt = user_prompt.replace("{predicted}", predicted)
+    user_prompt = user_prompt.replace("{reference}", reference_senza_nome)
+    user_prompt = user_prompt.replace("{predicted}", predicted_senza_nome)
 
     content = f"SYSTEM:\n{system_prompt} \n\nUSER:\n{user_prompt}"
 
@@ -262,17 +310,34 @@ def evaluate_pred_fieldwise(
     log_file: Path,
     present_fields: Optional[Dict[str, List[str]]] = None,
     use_gemini: bool = False,
+    context_type: Optional[Literal["retrieved_docs", "re_ranked_docs"]] = None,
+    doc_store_large_chunks_path: Optional[str] = None,
+    vectordb_page_contents: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Returns a filled match_data dict with 1/0 per leaf.
     One LLM call per field (skips call if fast_equal == True).
+
+    Args:
+        reference_obj: contains raw data (fields values and context_ids/contexts) for the one azienda for which the info is extracted with
+        predicted_obj: contains predicted data (fields values and context_ids/contexts) for the one azienda for which the info is extracted with
+        log_file: path to the file where the logs will be saved
+        present_fields: optional list of fields to be evaluated
+        use_gemini: if True, the evaluation will be done with the GEMINI API
+        context_type: optional type of context to be evaluated
+        doc_store_large_chunks_path: path to the directory where the large chunks are stored
+        vectordb_page_contents: list of page contents from the vector database sorted by chunk_id
     """
     match_dict = copy.deepcopy(MATCH_TEMPLATE)
+
+    if context_type:
+        assert doc_store_large_chunks_path and vectordb_page_contents, "doc_store_large_chunks_path and vectordb_page_contents are required when context_type is not None"
+        context_pred_obj = convert_context_pred_json_to_match_template(predicted_obj, context_type) # Has to come before converting predicted_obj
 
     # Covert reference_ob and predicted_obj to match with match_dict keys
     reference_obj = convert_combined_json_to_match_template(reference_obj, "raw")
     predicted_obj = convert_combined_json_to_match_template(predicted_obj, "pred")
-
+  
     
     llm = ChatOllama(
         model=EVALUATOR_LLM,
@@ -289,31 +354,47 @@ def evaluate_pred_fieldwise(
         for path in leaf_paths(match_dict):
             ref_v = get_by_path(reference_obj, path)
             pred_v = get_by_path(predicted_obj, path)
+            if context_type:
+                context_v = get_by_path(context_pred_obj, path)
+                context_passed = ""
+                if context_v.get("parents"):
+                    for parent_id in context_v.get("parents"):
+                        with open(f"{doc_store_large_chunks_path}/page_content/{parent_id}", encoding="utf-8") as large_doc_file:
+                            context_passed += large_doc_file.read()
+                            context_passed += "\n\n"
+                if context_v.get("children"):
+                    for child_id in context_v.get("children"):
+                        context_passed += f"{vectordb_page_contents[child_id]}\n" # type: ignore
+                        context_passed += "\n\n"
+                        
             
             f.write(f"\nNode: {path}\n")
             f.write(f"question: {ref_v['Q']}\n")
             f.write(f"ref_v: {ref_v['A']}\n")
             f.write(f"pred_v: {pred_v['A']}\n")
+            f.write(f"context_passed_to_LLM:\n {context_passed}\n\n")
 
             print(f"Node: {path}")###
             print(f"question: {ref_v['Q']}")
             print(f"ref_v: {ref_v['A']}")###
             print(f"pred_v: {pred_v['A']}")###
+            print(f"context_passed_to_LLM:\n {context_passed[:10]}")###
 
             # Fast path: exact/normalized equality -> no LLM call
-            if fast_equal(ref_v, pred_v):
+            if fast_equal(ref_v['A'], pred_v['A']) or (not ref_v['A'] and pred_v['A'] == "Non ho trovato la risposta nei documenti forniti."):
                 f.write("Fast Path...\n")
                 print("Fast Path...")###
                 set_by_path(match_dict, path, 1)
                 continue
             
+            
             # If pred_v empty or ref_v empty while other is not then set it to 0 -> no LLM call (since otherwise prev. if-statement will be executed)
-            if not ref_v:
+            if not ref_v['A']:
                 f.write("NOT MATCHED...\n")
                 print("NOT MATCHED...")
                 set_by_path(match_dict, path, 0)
                 continue        
-            if not pred_v:
+            if not pred_v['A']:
                 f.write("NOT MATCHED...\n")
                 print("NOT MATCHED...")
                 set_by_path(match_dict, path, 0)
@@ -330,11 +411,6 @@ def evaluate_pred_fieldwise(
                         user_prompt=EVAL_USER,
                     )
                     decision: FieldDecision = FieldDecision(match=decision_gemini) if decision_gemini != "N/A" else FieldDecision(match=False) # type: ignore
-                    f.write(f"Decision: {decision_gemini}") 
-                    print(decision_gemini)###
-                    set_by_path(match_dict, path, 1 if decision.match else 0)
-
-
                 except Exception as e:
                     # If parsing fails, be conservative
                     f.write(f"WARNING!: Exception: {e}")
@@ -343,6 +419,10 @@ def evaluate_pred_fieldwise(
                     f.close()
                     raise Exception(e)
                     # set_by_path(match_dict, path, 0)
+                else:
+                    f.write(f"Decision: {decision_gemini}") 
+                    print(decision_gemini)###
+                    set_by_path(match_dict, path, 1 if decision.match else 0)
             else:
                 # LLM decision (single field)
                 payload = {
@@ -363,8 +443,10 @@ def evaluate_pred_fieldwise(
                     print(f"WARNING!: Exception: {e}")
                     set_by_path(match_dict, path, 0)
             
-            # write space
-            f.write("\n\n")
+            f.write("\n")
+            
+        # write space
+        f.write("\n\n")
 
 
     # Optional Context counters
@@ -377,6 +459,10 @@ def eval_for_all_aziende(
     output_dir: Path,
     present_fields: Optional[Dict[str, List[str]]] = None,
     use_gemini: bool = False,
+    context_type: Optional[Literal["retrieved_docs", "re_ranked_docs"]] = None,
+    doc_store_large_chunks_path: Optional[str] = None,
+    vector_store_path: Optional[str] = None,
+
 ) -> None:
     """
     Evaluate the Predictions for every Azienda present in pred_data.json using llm as a judge, assigning match score
@@ -387,7 +473,29 @@ def eval_for_all_aziende(
                   keys being "name of azienda"
         pred_data: contains pred data (output, context_ids/contexts) for the all aziende for which the info is extracted with
                   keys being "name of azienda"
+        present_fields: optional list of fields to be evaluated
+        use_gemini: if True, the evaluation will be done with the GEMINI API
+        context_type: optional type of context to be evaluated
+        doc_store_large_chunks_path: path to the directory where the large chunks are stored
+        vector_store_path: path to the vector database to retrieve the context contents
     """
+
+    if context_type:
+        assert doc_store_large_chunks_path and vector_store_path, "doc_store_large_chunks_path and vector_store_path are required when context_type is not None"
+        embedding = HFEmbedder(normalize_embeddings=True)
+        vector_store = Chroma(embedding_function=embedding,
+                            persist_directory=vector_store_path,
+                            collection_name="pdf_chunks")
+        page_contents_list, metadatas_list = vector_store.get()['documents'], vector_store.get()['metadatas']
+        metadatas_chunk_ids_tuples = [(i, m.get("chunk_id")) for i, m in enumerate(metadatas_list)]
+        metadatas_chunk_ids_tuples.sort(key=lambda x: x[1])
+
+        # sort as per chunk_ids
+        idxs_for_sorted_list = [x[0] for x in metadatas_chunk_ids_tuples]
+        page_contents = [page_contents_list[idx] for idx in idxs_for_sorted_list]
+    else:
+        page_contents = None
+
     LOG_FILE = output_dir / "decision_logs_qa.txt"
     MATCH_SCORE_FILE = output_dir / "match_scores_qa.json"
 
@@ -397,11 +505,13 @@ def eval_for_all_aziende(
             print("Evaluatin using GEMINI...")
         else:
             f.write(f"EVALUATOR_LLM: {EVALUATOR_LLM}\n")
+        f.write(f"Date: {time.strftime('%Y-%m-%d  %H:%M:%S')}\n")
     
     match_data_azienda = {}
     for azienda in raw_data.keys():
         print(f"Azienda: {azienda}")
         with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write("="*80 + "\n")
             f.write(f"Azienda: {azienda}\n")
 
         raw_vals = raw_data[azienda]
@@ -411,7 +521,10 @@ def eval_for_all_aziende(
             predicted_obj=pred_v,
             log_file=LOG_FILE,
             present_fields=present_fields,
-            use_gemini=use_gemini
+            use_gemini=use_gemini,
+            context_type=context_type,
+            doc_store_large_chunks_path=doc_store_large_chunks_path,
+            vectordb_page_contents=page_contents
         )
 
         match_data_azienda[azienda] = match_data
@@ -431,7 +544,7 @@ if __name__ == "__main__":
         description="Load paths to combined_raw_json and pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json",
+        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True
@@ -443,19 +556,48 @@ if __name__ == "__main__":
         required=True
     )
     parser.add_argument(
-        "--use-gemini",
-        type=str,
+        "--use-gemini", # --use-gemini True
+        type=bool,
         help="Path(relative) to pred_json file which is to be evaluated",
         default=False
     )
+    parser.add_argument(
+        "--save-context", # --save-context "re_ranked_docs"
+        type=str,
+        choices=["retrieved_docs", "re_ranked_docs"],
+        help="If want to save contexts to decision_logs_qa, which contexts want to save?",
+        default=""
+    )
+    parser.add_argument(
+        "--doc-store-large-chunks-path", # --doc-store-large-chunks-path "data/large_chunks_dbs/TRAIN/fixed_size_chunks"
+        type=str,
+        help="Path (relative) to document store containing larger(parent) chunks."
+    )
+    parser.add_argument(
+        "--vector-store-path", #  --vector-store-path "data/vector_dbs/TRAIN/fixed_size_chunks"
+        type=str,
+        help="Path (relative) to vector store (DB) containing smaller embedded (child) chunks."
+    )
     args = parser.parse_args()
+
+    
 
     # Read configs
     cfgs = cfgs.get("args", {})
     BASE_DIR = cfgs.get("BASE_DIR", "")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "")
+
+    if args.save_context:
+        assert args.doc_store_large_chunks_path, "Path to doc_store_large_chunks not passed"
+        assert args.vector_store_path, "Path to vector db not passed"
+        doc_store_large_chunks_path = str(Path(BASE_DIR, args.doc_store_large_chunks_path))
+        vector_store_path = str(Path(BASE_DIR, args.vector_store_path))
+    else:
+        doc_store_large_chunks_path = None
+        vector_store_path = None
+
     
-    # Obtain paths for raw_json, pred_json and match_scores_json
+    # Define all paths
     combined_raw_json = Path(BASE_DIR, args.combined_raw_json)
     pred_json = Path(BASE_DIR, args.pred_json)
     EVAL_OUTPUT_DIR = Path(pred_json).parent
@@ -470,7 +612,10 @@ if __name__ == "__main__":
         raw_data,
         pred_data,
         EVAL_OUTPUT_DIR,
-        use_gemini=args.use_gemini
+        use_gemini=args.use_gemini,
+        context_type=args.save_context,
+        doc_store_large_chunks_path=doc_store_large_chunks_path,
+        vector_store_path=vector_store_path
     )
 
     

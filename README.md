@@ -20,7 +20,9 @@ match_scores files are saved in run/<TRAIN || TEST>/run_time/ with name: match_s
 2. Run extraction pipeline by running run_extraction.sh
 3. Create match_scores.json by running the script tests/utils/match_pred_output_llm.py
 4. Verify manually and correct if needed match_scores.json by consulting the decision_logs.txt
-5. Finally run eval_overall.py
+5. Create match_scores_qa.json by running the script tests/utils/match_pred_rag_QA.py
+6. Verify manually and correct if needed match_scores_qa.json by consulting the decision_logs_qa.txt
+7. Finally run eval_overall.py
 
 # Notes:
 - qwen3.5:4b is not good at extracting structured json format
@@ -37,6 +39,8 @@ match_scores files are saved in run/<TRAIN || TEST>/run_time/ with name: match_s
 5. Integrate the extraction process with streamlit frontend (a button which extracts the pre-defined fields for 1 statuto)
 6. Check if "keyBERT" model can be implemented for analyze_query node.
 7. Check OLLAMA implementation for Qwen3.5
+8. When testing classify the type of errors: half correct, correct but extra contradictory stuff, extract values for fields for which there is no ref values (false positives), missing values for which there is ref values (false negatives)
+
 
 # Possibile Improvements:
 1. In the anlyze_query node for the rag_pipeline, see if there are better alternatives than using LLM for optimizing the query such as spaCy or KeyBERT?? If not, at least use a differnt, smaller model for this step with zero-shot prompting. (TEST KeyBERT in analyze query thoroughly and if works better/good will need to modify the section 3.3.2 Node 1: Query Analysis and Pre-Retrieval Optimization in the thesis to reflect this)

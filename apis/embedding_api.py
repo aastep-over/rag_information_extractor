@@ -6,24 +6,25 @@ from pydantic import BaseModel, Field
 from typing import List, Any
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
-import yaml
 import argparse
 import torch
 
 # Logging
 import logging
-logger = logging.getLogger(__name__)
 from rag_info_extractor.utils.common_logging import configure_logging
-from rag_info_extractor.utils.load_config import cfgs
+logger = logging.getLogger(__name__)
 
+from rag_info_extractor.utils.load_config import cfgs
 
 # --- Global Config ---
 cfgs = cfgs.get("args", {})
 BASE_DIR = cfgs.get("BASE_DIR")
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-# Path to Pruner Model Directory/ name of the model
-MODEL_NAME_OR_PATH = os.environ.get("EMBEDDING_MODEL_NAME", "")
+# Path to EMBEDDING Model Directory/ name of the model
+EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
+EMBEDDING_MODEL_NAME_ENV = EMBEDDING_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+MODEL_NAME_OR_PATH = os.environ.get(EMBEDDING_MODEL_NAME_ENV, EMBEDDING_MODEL_NAME) # Load model from local path if already downloaded
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --- Input Data Structure ---

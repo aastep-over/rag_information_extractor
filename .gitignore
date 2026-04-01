@@ -1,7 +1,7 @@
 # Custom Files
 data
 runs
-01_DEMO.ipynb
+notebooks/
 tests/Information_Extractor/
 
 

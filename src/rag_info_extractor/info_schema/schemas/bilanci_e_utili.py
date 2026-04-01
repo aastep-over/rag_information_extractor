@@ -50,6 +50,7 @@ class TermineApprovazioneBilancio(BaseModel):
         default="",
         description=(
             "Tempistiche per l'approvazione del bilancio in condizioni ordinarie;"
+            "Accettare anche risposte del tipo 'come previsto dalla legge' o 'secondo termini di legge';"
             "Non convertire/normalizzare (non trasformare “duecento” in “200”);"
             "Se non specificato → stringa vuota."
         ),

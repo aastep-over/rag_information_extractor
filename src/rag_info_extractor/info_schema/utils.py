@@ -82,9 +82,15 @@ def word_to_number(num_str: str) -> int:
 
 def formatted_word_to_number(num_str: str) -> str:
     """Format integer with thousands separators (dot)."""
+    # No formatting for termini di legge/come previsto nel legge
+    pattern_to_spot = r"\b(?:come previsto|secondo|in base a|ai sensi di)\s+(?:dalla|dai|dal)?\s*(?:legge|termini di legge)\b"
+    if re.search(pattern_to_spot, num_str, re.IGNORECASE):
+        return num_str
+    # return as it is if already digit
     if num_str.isdigit():
         return num_str
     
+    # or try to find closest number
     n = word_to_number(num_str)
     return f"{n:,}".replace(",", ".")
 

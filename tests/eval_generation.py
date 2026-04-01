@@ -17,8 +17,8 @@ from pathlib import Path
 import time
 
 from rag_info_extractor.utils.llm_connector import OllamaLLM
-from .utils.load_aziende_data_dicts import load_company_dicts
-from .utils.eval_accuracy import accuracy_overall
+from utils.load_aziende_data_dicts import load_company_dicts
+from utils.eval_accuracy import accuracy_overall
 
 # logging relative
 import logging
@@ -390,6 +390,8 @@ def write_summary(
 if __name__ == "__main__":
 
     from rag_info_extractor.utils.load_config import cfgs
+    from rag_info_extractor.utils.embedder import HFEmbedder
+    
 
     # Parse args
     parser = argparse.ArgumentParser(
@@ -465,8 +467,9 @@ if __name__ == "__main__":
     
     else:
         VECTOR_STORE_PATH = Path(BASE_DIR) / "data" / "vector_dbs" / args.dataset_type / args.chunk_type
-        embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
-                                  encode_kwargs={"normalize_embeddings": True})
+        # embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
+        #                           encode_kwargs={"normalize_embeddings": True})
+        embedding = HFEmbedder(normalize_embeddings=True)
         vector_store = Chroma(embedding_function=embedding,
                             persist_directory=VECTOR_STORE_PATH,
                             collection_name="pdf_chunks")

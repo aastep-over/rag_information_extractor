@@ -495,6 +495,7 @@ if __name__ == "__main__":
     import time
     import yaml
     import argparse
+    from dotenv import load_dotenv
 
     from rag_info_extractor.utils.common_logging import configure_logging
     from rag_info_extractor.utils.load_config import cfgs
@@ -508,11 +509,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     
-    # # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
+    # CONFIG FILE SETTINGS:
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
@@ -526,6 +523,11 @@ if __name__ == "__main__":
     
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
     
+    # Load env_vars
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+    EMBEDDING_MODEL_NAME_ENV = EMBEDDING_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+    EMBEDDING_MODEL_PATH = os.environ.get(EMBEDDING_MODEL_NAME_ENV, EMBEDDING_MODEL_NAME)
+
     # Load pdf
     docs: List[Document] = []
     if PDF_LOADER == "pymupdf":
@@ -556,7 +558,7 @@ if __name__ == "__main__":
     # Define text splitter and tokenizer
     chunk_size = 430
     chunk_overlap = 105
-    tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_PATH, use_fast=True)
     text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
             tokenizer,
             chunk_size=chunk_size,  # chunk size (tokens)

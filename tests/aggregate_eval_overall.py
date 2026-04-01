@@ -4,22 +4,46 @@ import json
 from pathlib import Path
 import argparse
 import time
-import yaml
+from math import isnan
 
 
 # from other modules
 from utils.eval_context_PR import context_PR_overall
 from utils.eval_accuracy import accuracy_overall, accuracy_per_company, percentage_of_fields_extracted
-from utils.eval_runtime import runtime_overall, runtime_per_company
+from utils.eval_runtime import runtime_overall, runtime_per_company, unformat_time, format_time
 from utils.load_aziende_data_dicts import load_company_dicts
 
+def avg_dicts(*dicts):
+    """
+    Recursively averages the values of arbitrarily many dictionaries 
+    that share the exact same nested structure, ignoring None values.
+    """
+    if not dicts:
+        return {}
 
+    result = {}
+    first_dict = dicts[0]
 
-def write_summary(
-    output_file: Path,
+    for key in first_dict.keys():
+        # If the value is a dictionary, recurse deeper
+        if isinstance(first_dict[key], dict):
+            result[key] = avg_dicts(*(d[key] for d in dicts))
+        else:
+            # Extract all non-None values for this key across all dicts
+            valid_values = [d[key] for d in dicts if d[key] is not None]
+            
+            # If we have valid numbers, calculate the average
+            if valid_values:
+                result[key] = sum(valid_values) / len(valid_values)
+            # If all values were None, default to None (or 0 if you prefer)
+            else:
+                result[key] = None
+
+    return result
+
+def return_single_run_summary(
     companies_match_data: Dict[str, Any],
     companies_match_qa: Dict[str, Any],
-    companies_runtime: Dict[str, Any],
     companies_qa: Dict[str, Any],
     companies_contexts: Dict[str, Any],
     companies_ref_qa: Dict[str, Any],
@@ -27,6 +51,54 @@ def write_summary(
     companies_ref_contexts_ids: Dict[str, Any],
     combined_raw_json: Path,
     combined_pred_json: Path,
+    USE_PARENT_CHUNKS: bool = True,
+):  
+
+    """Returns summary + detailed results"""
+
+    # Calculate overall accuracy and runtime
+    acc_all = accuracy_overall(companies_match_data)
+    acc_all_qa = accuracy_overall(companies_match_qa)
+
+    # Calculate Context PR
+    if USE_PARENT_CHUNKS:
+        context_pr_output_parent = context_PR_overall(
+            companies_qa, companies_contexts,
+            companies_ref_qa, companies_ref_contexts,
+            companies_ref_contexts_ids,
+            use_parent_chunks=True
+        )
+
+    context_pr_output_children = context_PR_overall(
+        companies_qa, companies_contexts,
+        companies_ref_qa, companies_ref_contexts,
+        companies_ref_contexts_ids
+    )
+
+    # Calculate %age of fields extracted
+    combined_raw_data = json.loads(combined_raw_json.read_text(encoding="utf-8"))
+    combined_pred_data = json.loads(combined_pred_json.read_text(encoding="utf-8"))
+    percent_field_extracted = percentage_of_fields_extracted(combined_pred_data, combined_raw_data)
+
+    return (
+        acc_all,
+        acc_all_qa,
+        context_pr_output_parent,
+        context_pr_output_children,
+        percent_field_extracted,
+        companies_match_data,
+        companies_match_qa,
+    )
+
+def write_summary(
+    output_file: Path,
+    companies_match_data: Dict[str, Any],
+    companies_match_qa: Dict[str, Any],
+    acc_all: Dict[str, Any],
+    acc_all_qa: Dict[str, Any],
+    context_pr_output_parent: Dict[str, Any],
+    context_pr_output_children: Dict[str, Any],
+    percent_field_extracted: float,
     detailed_result: bool = True,
     USE_PARENT_CHUNKS: bool = True,
     data_to_be_evaluated: Literal["qa", "json", "both"] = "both"
@@ -40,32 +112,6 @@ def write_summary(
         f.write(text + ("\n" if kwargs.get("end", "\n") == "\n" else ""))
 
     with open(output_file, "w", encoding="utf-8") as f:
-
-        # Calculate overall accuracy and runtime
-        acc_all = accuracy_overall(companies_match_data)
-        acc_all_qa = accuracy_overall(companies_match_qa)
-        runtime_all = runtime_overall(companies_runtime)
-
-        # Calculate Context PR
-        if USE_PARENT_CHUNKS:
-            context_pr_output_parent = context_PR_overall(
-                companies_qa, companies_contexts,
-                companies_ref_qa, companies_ref_contexts,
-                companies_ref_contexts_ids,
-                use_parent_chunks=True
-            )
-
-        context_pr_output_children = context_PR_overall(
-            companies_qa, companies_contexts,
-            companies_ref_qa, companies_ref_contexts,
-            companies_ref_contexts_ids
-        )
-
-        # Calculate %age of fields extracted
-        combined_raw_data = json.loads(combined_raw_json.read_text(encoding="utf-8"))
-        combined_pred_data = json.loads(combined_pred_json.read_text(encoding="utf-8"))
-        percent_field_extracted = percentage_of_fields_extracted(combined_pred_data, combined_raw_data)
-
 
         # ---------------------------- SUMMARY -----------------------------------------
         w("Use Parent Chunks: TRUE" if USE_PARENT_CHUNKS else "Not Using Parent Chunks")
@@ -84,20 +130,14 @@ def write_summary(
             for group, data in acc_all['per_group'].items():
                 w(f"\t\t\t{group}: {data['accuracy']:.3f}")
 
+        # ------------------------ Accuracy (rag QA)------------------------
         if data_to_be_evaluated in ("both", "qa"):
-            # ------------------------ Accuracy (rag QA)------------------------
             w("\n\tAccuracy (RAG QA):")
             w("\t\tAvg. Company accuracy:", f"{acc_all_qa['overall']['accuracy']:.3f}")
             w("\t\tAvg. per Group Accuracies:")
             for group, data in acc_all_qa['per_group'].items():
                 w(f"\t\t\t{group}: {data['accuracy']:.3f}")
 
-        # # ------------------------ Runtime ------------------------
-        # w("\n\tRuntime:")
-        # w("\t\tAvg. Company Runtime:", runtime_all['overall'])
-        # w("\t\tAvg. per Group Runtimes:")
-        # for group, data in runtime_all['per_group'].items():
-        #     w(f"\t\t\t{group}: {data}")
 
         # ------------------------ Context Precision ------------------------
         if USE_PARENT_CHUNKS:
@@ -176,29 +216,6 @@ def write_summary(
                 w(f"\t\t{group}: {data['accuracy']:.3f}")
 
             w('"""')
-
-        # # ----------------------------- Runtime Details -----------------------------
-        # w("\n" + "-" * 120)
-        # w("-" * 120 + "\n")
-        # w('"""')
-
-        # w("RUN TIME:\n")
-        # for c, c_data in companies_runtime.items():
-        #     t = runtime_per_company(c_data)
-        #     w("\n\tCompany:", c)
-        #     w("\t\tAvg. Group Runtime:", t['overall'])
-        #     w("\n\t\tPer Group Runtime:")
-        #     for group, data in t['per_group'].items():
-        #         w(f"\t\t\t{group}: {data}")
-        #     w("\n" + "-" * 40 + " xxxxx " + "-" * 40)
-
-        # w("Overall Runtime:")
-        # w("\tAvg. Company Runtime:", runtime_all['overall'])
-        # w("\n\tAvg. per Group Runtimes:")
-        # for group, data in runtime_all['per_group'].items():
-        #     w(f"\t\t{group}: {data}")
-
-        # w('"""')
 
         # ----------------------------- Context Precision Details -----------------------------
         w("\n" + "-" * 120)
@@ -302,38 +319,30 @@ def write_summary(
 
         w('"""')
 
+    
+
+
 
 
 
 if __name__ == "__main__":
 
     from rag_info_extractor.utils.load_config import cfgs
+    import os
 
     parser = argparse.ArgumentParser(
         description="Load paths to combined_raw_json and combined_pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
+        "--combined-raw-json", # "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True
     )
     parser.add_argument(
-        "--combined-pred-json",
+        "--runs-dir",
         type=str,
-        help="Path(relative) to combined_pred_json file which is to be evaluated",
-        required=True
-    )
-    parser.add_argument(
-        "--match-scores-json",
-        type=str,
-        help="Path(relative) to match_scores_json file",
-        required=True
-    )
-    parser.add_argument(
-        "--match-scores-qa-json",
-        type=str,
-        help="Path(relative) to match_scores_qa_json file",
+        help="Path(relative) to directory containing all the runs to be aggregated (e.g. runs/TRAIN/ablation_overall_llms/gemma3-4b)",
         required=True
     )
     parser.add_argument(
@@ -351,44 +360,97 @@ if __name__ == "__main__":
     # Load configs
     cfgs = cfgs.get("args", {})
     BASE_DIR = Path(cfgs.get("BASE_DIR", "./"))
+    run_names = [f for f in os.listdir(Path(BASE_DIR, args.runs_dir)) if os.path.isdir(Path(BASE_DIR, args.runs_dir, f))]
+    print(args.runs_dir)
 
     # Obtain paths for raw_json, combined_pred_json and match_scores_json
     combined_raw_json = Path(BASE_DIR, args.combined_raw_json)
-    combined_pred_json = Path(BASE_DIR, args.combined_pred_json)
-    match_scores_json = Path(BASE_DIR, args.match_scores_json)
-    match_scores_qa_json = Path(BASE_DIR, args.match_scores_qa_json)
+    combined_pred_jsons = [Path(BASE_DIR, args.runs_dir, run, "pred.json") for run in run_names]
+    match_scores_jsons = [Path(BASE_DIR, args.runs_dir, run, "match_scores.json") for run in run_names]
+    match_scores_qa_jsons = [Path(BASE_DIR, args.runs_dir, run, "match_scores_qa.json") for run in run_names]
 
     assert combined_raw_json.exists(), f"File not found: {combined_raw_json}"
-    assert combined_pred_json.exists(), f"File not found: {combined_pred_json}"
-    assert match_scores_json.exists(), f"File not found: {match_scores_json}"
-    assert match_scores_qa_json.exists(), f"File not found: {match_scores_qa_json}"
+    for i in range(len(combined_pred_jsons)):
+        assert combined_pred_jsons[i].exists(), f"File not found: {combined_pred_jsons[i]}"
+        assert match_scores_jsons[i].exists(), f"File not found: {match_scores_jsons[i]}"
+        assert match_scores_qa_jsons[i].exists(), f"File not found: {match_scores_qa_jsons[i]}"
+
+    # Calculate for each run
+    acc_all_all_runs = []
+    acc_all_qa_all_runs = []
+    context_pr_output_parent_all_runs = []
+    context_pr_output_children_all_runs = []
+    companies_match_data_all_runs = []
+    companies_match_qa_all_runs = []
+    percent_field_extracted_all_runs = []
+
+    for i in range(len(combined_pred_jsons)):
+        (
+            companies_match_data,
+            companies_match_qa,
+            companies_pred_qa,
+            companies_raw_qa,
+            companies_raw_contexts,
+            companies_pred_contexts,
+            companies_raw_contexts_ids,
+            companies_pred_contexts_ids,
+            companies_runtimes,
+        ) = load_company_dicts(combined_raw_json, combined_pred_jsons[i], match_scores_jsons[i], match_scores_qa_jsons[i])
 
 
-    (
-        companies_match_data,
-        companies_match_qa,
-        companies_pred_qa,
-        companies_raw_qa,
-        companies_raw_contexts,
-        companies_pred_contexts,
-        companies_raw_contexts_ids,
-        companies_pred_contexts_ids,
-        companies_runtimes,
-    ) = load_company_dicts(combined_raw_json, combined_pred_json, match_scores_json, match_scores_qa_json)
+        (
+            acc_all,
+            acc_all_qa,
+            context_pr_output_parent,
+            context_pr_output_children,
+            percent_field_extracted,
+            companies_match_data,
+            companies_match_qa,
+        ) = return_single_run_summary(
+            companies_match_data = companies_match_data,
+            companies_match_qa = companies_match_qa,
+            companies_qa = companies_pred_qa,
+            companies_contexts = companies_pred_contexts_ids,
+            companies_ref_qa = companies_raw_qa,
+            companies_ref_contexts = companies_raw_contexts, 
+            companies_ref_contexts_ids = companies_raw_contexts_ids,
+            combined_raw_json = combined_raw_json,
+            combined_pred_json = combined_pred_jsons[i],
+            USE_PARENT_CHUNKS = True,
+        )
 
+        # Append to all_runs
+        acc_all_all_runs.append(acc_all)
+        acc_all_qa_all_runs.append(acc_all_qa)
+        context_pr_output_parent_all_runs.append(context_pr_output_parent)
+        context_pr_output_children_all_runs.append(context_pr_output_children)
+        percent_field_extracted_all_runs.append(percent_field_extracted)
+        companies_match_data_all_runs.append(companies_match_data)
+        companies_match_qa_all_runs.append(companies_match_qa)
 
+    # Average all runs
+    acc_all = avg_dicts(*acc_all_all_runs)
+    acc_all_qa = avg_dicts(*acc_all_qa_all_runs)
+    # runtime_all = avg_dicts(*runtime_all_all_runs) # TODO: fix avg_dict error
+    context_pr_output_parent = avg_dicts(*context_pr_output_parent_all_runs)
+    context_pr_output_children = avg_dicts(*context_pr_output_children_all_runs)
+    companies_match_data = avg_dicts(*companies_match_data_all_runs)
+    companies_match_qa = avg_dicts(*companies_match_qa_all_runs)
+    # companies_runtime = avg_dicts(*companies_runtime_all_runs) # TODO: fix avg_dict error
+    percent_field_extracted = sum(percent_field_extracted_all_runs) / len(percent_field_extracted_all_runs)
+
+  
+
+    # Save summary to aggregate_summary
     write_summary(
+        output_file = BASE_DIR / args.runs_dir / "aggregate_summary.txt",
         companies_match_data = companies_match_data,
         companies_match_qa=companies_match_qa,
-        companies_runtime = companies_runtimes,
-        companies_qa = companies_pred_qa,
-        companies_contexts = companies_pred_contexts_ids,
-        companies_ref_qa = companies_raw_qa,
-        companies_ref_contexts = companies_raw_contexts, 
-        companies_ref_contexts_ids = companies_raw_contexts_ids,
-        output_file = combined_pred_json.parent / "summary.txt",
-        combined_raw_json = combined_raw_json,
-        combined_pred_json = combined_pred_json,
+        acc_all = acc_all,
+        acc_all_qa = acc_all_qa,
+        context_pr_output_parent = context_pr_output_parent,
+        context_pr_output_children = context_pr_output_children,
+        percent_field_extracted = percent_field_extracted,
         detailed_result = True,
         USE_PARENT_CHUNKS = True,
         data_to_be_evaluated = args.data_to_be_evaluated

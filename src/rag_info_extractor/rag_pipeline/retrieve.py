@@ -25,7 +25,8 @@ def retrieve(
     doc_store_large_chunks_path: Optional[str], 
     azienda: str = "",
     pages_joining_str: Optional[str] = None,
-    retrieve_parents: bool = False
+    retrieve_parents: bool = False,
+    save_full_chunks: bool = False
 ) -> _Output_retrieve:
     
     logger.info("\n --------------- NODE: __retrieve__ ------------------------\n")###
@@ -76,10 +77,18 @@ def retrieve(
     for d in retrieved_docs:
         if "parent_id" in d.metadata.keys():
             children_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
-            children_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+
+            if save_full_chunks:
+                children_retrieved_docs_texts.append(f"{d.page_content}")
+            else:
+                children_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
         else:
             parents_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
-            parents_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+
+            if save_full_chunks:
+                parents_retrieved_docs_texts.append(f"{d.page_content}")
+            else:
+                parents_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
 
     retrieved_docs_ids = {
         "parents": parents_retrieved_docs_ids,
@@ -102,13 +111,14 @@ def retrieve(
 
 
 if __name__ == "__main__":
-    import yaml, os, time, datetime
+    import os, time, datetime
     from pathlib import Path
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_chroma import Chroma
     from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
     from rag_info_extractor.utils.load_config import cfgs
+    from rag_info_extractor.utils.embedder import HFEmbedder
 
     t0 = time.time()
 
@@ -120,10 +130,6 @@ if __name__ == "__main__":
     logger.info(f"Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
     # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
     cfgs = cfgs.get("args", {})
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
@@ -137,8 +143,9 @@ if __name__ == "__main__":
     VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) 
 
     # Load Vector and Doc store
-    embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
-                                  encode_kwargs={"normalize_embeddings": True})
+    # embedding = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME,
+    #                               encode_kwargs={"normalize_embeddings": True})
+    embedding = HFEmbedder(normalize_embeddings=True)
     vector_store = Chroma(embedding_function=embedding,
                         persist_directory=VECTOR_STORE_PATH,
                         collection_name="pdf_chunks")
@@ -172,7 +179,8 @@ if __name__ == "__main__":
 
 
     with open("output_temp", "w", encoding="utf-8") as f:
-        f.write(f"## OUTPUT FOR: retrieve.py \n{datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n\n")
+        f.write("## OUTPUT FOR: retrieve.py\n")
+        f.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
         f.write("DOCUMENTS RETRIEVED: \n")
         
         retrieved_docs = output.get("context", [])

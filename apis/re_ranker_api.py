@@ -13,8 +13,8 @@ import torch
 # Logging
 import logging
 logger = logging.getLogger(__name__)
-from rag_app.utils.common_logging import configure_logging
-from rag_app.utils.load_config import cfgs
+from rag_info_extractor.utils.common_logging import configure_logging
+from rag_info_extractor.utils.load_config import cfgs
 
 
 # --- Global Config ---
@@ -23,7 +23,9 @@ env_vars_file_path = cfgs.get("BASE_DIR")
 load_dotenv(os.path.join(env_vars_file_path, ".env.txt"))
 
 # Path to ReRanker Model Directory/ name of the model
-MODEL_NAME_OR_PATH = os.environ.get("RERANKER_MODEL", "")
+RERANKER_MODEL_NAME = cfgs.get("RERANKER_MODEL", "") 
+RERANKER_MODEL_NAME_ENV = RERANKER_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+MODEL_NAME_OR_PATH = os.environ.get(RERANKER_MODEL_NAME_ENV, RERANKER_MODEL_NAME) # Load model from local path if already downloaded
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --- Input Data Structure ---

@@ -116,7 +116,7 @@ def load_parent_chunks_from_dir(chunks_dir: str) -> List[Document]:
 
     return parent_chunks
 
-def load_children_chunks_from_chroma(chunks_dir: str, embedding: HuggingFaceEmbeddings) -> List[Document]:    
+def load_children_chunks_from_chroma(chunks_dir: str, embedding) -> List[Document]:    
     """ Load children chunks from a vector db (chroma) in chunks_dir"""
     vector_store = Chroma(
         embedding_function=embedding,
@@ -148,11 +148,11 @@ def find_raw_chunk_ids(
         for sg_name, context in group_contexts.items():
             per_subgruop = {}
             
-            if not context: # TODO: REMOVE THIS PART AFTER VERIFYING CONTEXT IDS
-                per_subgruop["parents"] = [-100]
-                per_subgruop["children"] = [-100]
-                per_group[sg_name] = per_subgruop
-                continue
+            # if not context: # TODO: REMOVE THIS PART AFTER VERIFYING CONTEXT IDS
+            #     per_subgruop["parents"] = [-100]
+            #     per_subgruop["children"] = [-100]
+            #     per_group[sg_name] = per_subgruop
+            #     continue
 
             
             # find ids of children chunks
@@ -210,7 +210,7 @@ def insert_chunk_id_to_combined_raw_json(
         
 
 
-# -------------------- Functions to verify if obtained ids correct --------------------------------------
+# -------------------- Function to verify if obtained ids correct --------------------------------------
 def analyze_raw_contexts_coverage(
     combined_raw_json_path: str,
     parent_chunks_dir: str,
@@ -313,9 +313,25 @@ if __name__ == "__main__":
     from rag_info_extractor.utils.load_config import cfgs
     import time, datetime
     import argparse
+    from dotenv import load_dotenv
+
     from rag_info_extractor.utils.common_logging import configure_logging
+    from rag_info_extractor.utils.embedder import HFEmbedder
     
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--chunk-type",
+        type=str,
+        choices=["custom_chunks", "fixed_size_chunks", "semantic_chunks"],
+        help="Chunking method used to extract context from",
+        required=True
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        choices=["TEST", "TRAIN"],
+        required=True
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging") # For DEBUG level logging, run in cli: python .\ingest_docs.py --verbose or -v
     args = parser.parse_args()
 
@@ -325,32 +341,27 @@ if __name__ == "__main__":
 
     t0 = time.time()
 
-
+    # CONFIG FILE SETTINGS:
     cfgs = cfgs.get("args", {})
     BASE_DIR = cfgs.get("BASE_DIR", "./")
-    EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME", "")
-
 
     # Obtain raw_data dict
-    combined_raw_json_path = Path(BASE_DIR, "data/jsons/TRAIN/combined_data.json") 
+    combined_raw_json_path = Path(BASE_DIR, f"data/jsons/{args.dataset}/{args.chunk_type}/combined_data.json") 
 
     # Obtain larger chunks (parent chunks) as Document
-    DOC_STORE_LARGE_CHUNKS_PATH = f"{BASE_DIR}/data/large_chunks_dbs/TRAIN/custom_chunks"
+    DOC_STORE_LARGE_CHUNKS_PATH = f"{BASE_DIR}/data/large_chunks_dbs/{args.dataset}/{args.chunk_type}"
     parent_chunks = load_parent_chunks_from_dir(f"{DOC_STORE_LARGE_CHUNKS_PATH}")
     logger.info(f"Loaded parent chunks from: {DOC_STORE_LARGE_CHUNKS_PATH}")
 
     # Obtain child/small chunks from vector db (chroma)
-    embedding = HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
-        encode_kwargs={"normalize_embeddings": True}
-    )
-    VECTOR_STORE_PATH = f"{BASE_DIR}/data/vector_dbs/TRAIN/custom_chunks"
+    embedding = HFEmbedder(normalize_embeddings=True)
+    VECTOR_STORE_PATH = f"{BASE_DIR}/data/vector_dbs/{args.dataset}/{args.chunk_type}"
     children_chunks = load_children_chunks_from_chroma(VECTOR_STORE_PATH, embedding)
     logger.info(f"Loaded children chunks from: {VECTOR_STORE_PATH}")
 
 
     # # 1. raw chunk ids for a single azienda
-    # azienda = "ospedale tortona società consortile a r.l."
+    # azienda = "medicare salute & servizi s.r.l."
     # logger.info(f"Finding raw chunks ids for a single azienda...'{azienda}'")
     # combined_raw_data = json.loads(combined_raw_json_path.read_text(encoding="utf-8"))
     # data_azienda = combined_raw_data.get(azienda, {})
@@ -378,13 +389,13 @@ if __name__ == "__main__":
         combined_raw_json_path = str(combined_raw_json_path),
         parent_chunks_dir = DOC_STORE_LARGE_CHUNKS_PATH,
         children_chunks = children_chunks,
-        threshold = 0.9
+        threshold = 0.7
     )
 
     with open("output_temp.json", "w", encoding="utf-8") as f:
-        # f.write("Output for find_raw_chunks_ids.py\n")
-        # f.write(f"Date: {datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n")
-        # f.write(f"Function ran: analyze_raw_contexts_coverage\n\n\n")
+        f.write("Output for find_raw_chunks_ids.py\n")
+        f.write(f"Date: {datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Function ran: analyze_raw_contexts_coverage\n\n\n")
 
         json.dump(results_below_threshold, f, indent=4, ensure_ascii=False)
     print(json.dumps(results_below_threshold, indent=4, ensure_ascii=False))
@@ -397,10 +408,10 @@ if __name__ == "__main__":
 
 
 
-# Workflow:
+# Workflow for Verifying raw_chunks:
 # 1. Read output_temp.json saved byfind_raw_chunks_id.py to check which fileds have been outputed with low coverage threshold score
 # 2. Read the chunk of the idxs for which cov_threshold output is low in DEMO.ipynb (for parent and/or child)
 # 3. Compare and update combined_data.json if needed
 
 
-## Verified for TRAIN pdfs
+## Verified for TRAIN/custom_chunks

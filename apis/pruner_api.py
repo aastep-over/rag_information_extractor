@@ -22,7 +22,9 @@ env_vars_file_path = cfgs.get("BASE_DIR")
 load_dotenv(os.path.join(env_vars_file_path, ".env.txt"))
 
 # Path to Pruner Model Directory/ name of the model
-MODEL_NAME_OR_PATH = os.environ.get("PRUNER_MODEL", "")
+PRUNER_MODEL_NAME = cfgs.get("PRUNER_MODEL", "")
+PRUNER_MODEL_NAME_ENV = PRUNER_MODEL_NAME.replace("/", "__").replace("-", "_").upper()
+MODEL_NAME_OR_PATH = os.environ.get(PRUNER_MODEL_NAME_ENV, PRUNER_MODEL_NAME) # Load model from local path if already downloaded
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # --- Input Data Structure ---

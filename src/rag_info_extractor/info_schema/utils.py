@@ -4,6 +4,8 @@ import inspect
 from typing import Dict, Type, List, DefaultDict
 from pathlib import Path
 from collections import defaultdict
+import json
+from pydantic import BaseModel
 
 
 # Post extraction Functions (POST_FUNC)
@@ -94,7 +96,26 @@ def formatted_word_to_number(num_str: str) -> str:
     n = word_to_number(num_str)
     return f"{n:,}".replace(",", ".")
 
+def return_default_json(basemodel_json_schema_properties: dict) -> dict:
+    """
+    Returns default values of every key in the basemodel.
+    Args:
+        basemodel_json_schema_properties: .model_json_schema()['properties']
+    """
+    default_json = {}
+    for k, v in basemodel_json_schema_properties.items():
+        default_json[k] = v['default']
+    return default_json
 
+def return_keys_description_schema(schema: BaseModel) -> str:
+    output = {}
+    for k, v in schema.model_json_schema()['properties'].items():
+        output[k] = {
+            "descrizione": v['description'],
+            "type": v['type']
+        }
+    
+    return json.dumps(output, indent=4, ensure_ascii=False)
 
 # Load all the schemas of info to be extracted from ./schemas
 def load_classes_from_path(
@@ -123,7 +144,7 @@ def load_classes_from_path(
         loader = spec.loader
         if loader is None:
             continue
-        loader.exec_module(module)  # run the module
+        loader.exec_module(module)  # run the module # this is synchronous
 
         for name, obj in inspect.getmembers(module, inspect.isclass):
             if getattr(obj, "__module__", None) == module.__name__:

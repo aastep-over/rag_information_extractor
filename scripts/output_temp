@@ -1,18 +1,19 @@
 ## OUTPUT FOR: rag_pipeline.py 
-2026-03-10 12:27:13
+2026-04-15 19-33-32
+Async: True
 
 USER QUERY: Agli amministratori spetta il rimborso delle spese? Informazione richiesto per la società: 2KIND SRL
 
-Optimied Query: {'query': 'rimborso spese amministratori', 'azienda': '2kind srl'}
+Optimied Query: {'query': 'rimborso spese amministratori statuto', 'azienda': '2kind srl'}
 
-LLM ANSWER: Sì, agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio.
+LLM ANSWER: Agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio.
 
 
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 RETRIEVER DOCs...
 
-Retrieved doc ids: {'parents': [], 'children': [25, 9, 23, 26, 14, 27, 18, 22]}
+Retrieved doc ids: {'parents': [], 'children': [26, 10, 32, 19, 37, 23, 25, 31]}
 
 VECTOR STORE chunks: 
 
@@ -36,6 +37,47 @@ ASSEMBLEA-DECISIONI DEI SOCI
 
 
 -------------------------------------------------- CHUNK 2 --------------------------------------------------
+Art.11.- Le decisioni dei soci possono essere adottate mediante
+consultazione scritta.
+ La consultazione scritta avviene su iniziativa di uno o più Amministratori
+o di almeno un socio e consiste in una proposta di decisione che deve essere
+inviata a tutti i soci, agli amministratori ed ai sindaci,  se nominati, con
+qualsiasi mezzo idoneo ad assicurare la prova dell'avvenuto ricevimento.
+Dalla proposta devono risultare  l'argomento oggetto della decisione,  il
+testo della decisione da adottare ed il termine entro il quale deve essere
+emessa la dichiarazione di consenso.
+ I soci devono comunicare all'organo amministrativo la loro  adesione entro
+il termine indicato nella proposta; la mancata risposta dei soci entro il
+termine suddetto viene considerata come astensione.
+ Spetta all'organo amministrativo comunicare senza indugio i risultati della
+consultazione a tutti i soci, amministratori ed ai sindaci, con qualsiasi mezzo
+idoneo ad assicurare la prova dell'avvenuto ricevimento  indicando:
+- i soci favorevoli, contrari o astenuti con  la quota di partecipazione  da
+ciascuno posseduta o detenuta;
+- la data, anche precedente al termine indicato nella proposta, in cui è stata
+adottata la decisione;
+- eventuali osservazioni o dichiarazioni relative all'argomento oggetto della
+decisione, se richieste dagli stessi soci.
+ Le decisioni dei soci sono assunte con il voto favorevole di una
+maggioranza che rappresenti almeno la metà del capitale sociale.
+ Le decisioni dei soci adottate ai sensi del presente Articolo devono essere
+trascritte, entro cinque giorni dalla decisione, a cura dell'organo
+amministrativo nel libro delle decisioni dei soci.
+ Tutte le dichiarazioni  e i documenti pervenuti alla Società devono essere
+conservati, unitamente al libro delle decisioni dei soci.
+ Le decisioni dei soci debbono essere adottate mediante deliberazione
+assembleare qualora lo richiedono uno o più amministratori o un numero di
+soci che rappresentano almeno un terzo del capitale sociale ovvero qualora
+abbiano ad oggetto le seguenti materie indicate ai punti 4 e 5 del secondo
+comma dell'art.2479 c.c. e precisamente:
+a) modificazioni dello statuto;
+b) operazioni che comportino una sostanziale modificazione dell'oggetto
+sociale;
+c) operazioni che comportino una rilevante modificazione dei diritti dei soci.
+AMMINISTRAZIONE
+
+
+-------------------------------------------------- CHUNK 3 --------------------------------------------------
 Art.12.- La società può essere amministrata, alternativamente, su
 decisione dei soci:
 a)  da un Amministratore Unico;
@@ -50,17 +92,10 @@ salvo rinuncia, revoca od altra causa di cessazione. Essi sono rieleggibili e
 CONSIGLIO DI AMMINISTRAZIONE
 
 
--------------------------------------------------- CHUNK 3 --------------------------------------------------
+-------------------------------------------------- CHUNK 4 --------------------------------------------------
 Art.15. -  Per la validità delle deliberazioni del consiglio è necessaria la
 presenza ed il voto favorevole della maggioranza degli amministratori in
 carica.
-
-
--------------------------------------------------- CHUNK 4 --------------------------------------------------
-Art.16. - Il consiglio di amministrazione può delegare le proprie
-attribuzioni ad un o più dei suoi membri determinandone all'atto della
-nomina i poteri con le limitazioni di cui all'articolo 2381 c.c.
-POTERI DEGLI AMMINISTRATORI
 
 
 -------------------------------------------------- CHUNK 5 --------------------------------------------------
@@ -70,16 +105,6 @@ soci.
 
 
 -------------------------------------------------- CHUNK 6 --------------------------------------------------
-Art.20.- Gli amministratori non possono assumere la qualità di soci
-illimitatamente responsabili in società concorrenti, né esercitare un'attività
-concorrente per conto proprio o di terzi, né essere amministratori o direttori
-generali in una società concorrente, salvo autorizzazione dell'assemblea.
-L'amministratore che non osservi il presente divieto può essere revocato  e
-risponde dei danni.
- ORGANO DI CONTROLLO
-
-
--------------------------------------------------- CHUNK 7 --------------------------------------------------
 Art.21.- I soci con apposita decisione nominano un organo di controllo in
 persona di un Sindaco Unico o di un Revisore legale dei conti ai sensi
 dell'art.2477 c.c., ai quali competono il controllo di gestione e il controllo
@@ -91,6 +116,17 @@ della nomina.
 legge.
 ESERCIZI SOCIALI BILANCIO E UTILI
 
+
+-------------------------------------------------- CHUNK 7 --------------------------------------------------
+Art.27.- Per quanto non è espressamente contemplato nel presente statuto
+si fa riferimento alle disposizioni contenute nel Codice Civile e nelle altre
+leggi.
+F.to: FILIPPO GENTILE - PAOLO RAITI
+------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------ Copia su supporto informatico conforme all'originale docu-
+mento su supporto cartaceo, ai sensi dell'art.23 del D.Lgs.
+82/2005, che si trasmette ad uso Registro Imprese. Imposta
+di bollo assolta ai sensi del D.M. 22/2/2007 mediante M.U.I.
+
 ----------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 DOC STORE chunks: 
@@ -99,7 +135,7 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 RE-RANKED DOCs...
 
-Re-Ranked doc ids: {'parents': [27, 20], 'children': []}
+Re-Ranked doc ids: {'parents': [31, 24], 'children': []}
 
 VECTOR STORE chunks: 
 ----------------------------------------------------------------------------------------------------

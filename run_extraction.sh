@@ -24,12 +24,7 @@ ollama serve > /dev/null 2>&1 &
 
 # esegui lo script Python e passa eventuali argomenti
 cd scripts
-# python extract_info.py "$@"
-python extract_info.py --chunks-type "fixed_size_chunks" # run this
-
-
-# python extract_info.py --chunks-type "semantic_chunks"
-# python extract_info.py --chunks-type "semantic_chunks"
+python extract_info.py "$@"
 
 # prova a disattivare (se è stato attivato)
 if type deactivate >/dev/null 2>&1; then

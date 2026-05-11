@@ -313,13 +313,13 @@ if __name__ == "__main__":
         description="Load paths to combined_raw_json and combined_pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
+        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/custom_chunks_2/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True
     )
     parser.add_argument(
-        "--combined-pred-json",
+        "--pred-json",
         type=str,
         help="Path(relative) to combined_pred_json file which is to be evaluated",
         required=True
@@ -354,7 +354,7 @@ if __name__ == "__main__":
 
     # Obtain paths for raw_json, combined_pred_json and match_scores_json
     combined_raw_json = Path(BASE_DIR, args.combined_raw_json)
-    combined_pred_json = Path(BASE_DIR, args.combined_pred_json)
+    combined_pred_json = Path(BASE_DIR, args.pred_json)
     match_scores_json = Path(BASE_DIR, args.match_scores_json)
     match_scores_qa_json = Path(BASE_DIR, args.match_scores_qa_json)
 
@@ -376,6 +376,18 @@ if __name__ == "__main__":
         companies_runtimes,
     ) = load_company_dicts(combined_raw_json, combined_pred_json, match_scores_json, match_scores_qa_json)
 
+    for data in (
+        companies_match_data,
+        companies_match_qa,
+        companies_pred_qa,
+        companies_raw_qa,
+        companies_raw_contexts,
+        companies_pred_contexts,
+        companies_raw_contexts_ids,
+        companies_pred_contexts_ids,
+        companies_runtimes
+    ):
+        print(data.keys(), "\n\n")
 
     write_summary(
         companies_match_data = companies_match_data,

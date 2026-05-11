@@ -322,7 +322,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk-type",
         type=str,
-        choices=["custom_chunks", "fixed_size_chunks", "semantic_chunks"],
+        choices=["custom_chunks", "fixed_size_chunks", "semantic_chunks", "custom_chunks_2"],
         help="Chunking method used to extract context from",
         required=True
     )
@@ -351,13 +351,13 @@ if __name__ == "__main__":
     # Obtain larger chunks (parent chunks) as Document
     DOC_STORE_LARGE_CHUNKS_PATH = f"{BASE_DIR}/data/large_chunks_dbs/{args.dataset}/{args.chunk_type}"
     parent_chunks = load_parent_chunks_from_dir(f"{DOC_STORE_LARGE_CHUNKS_PATH}")
-    logger.info(f"Loaded parent chunks from: {DOC_STORE_LARGE_CHUNKS_PATH}")
+    logger.info(f"Loaded parent {len(parent_chunks)} chunks from: {DOC_STORE_LARGE_CHUNKS_PATH}")
 
     # Obtain child/small chunks from vector db (chroma)
     embedding = HFEmbedder(normalize_embeddings=True)
     VECTOR_STORE_PATH = f"{BASE_DIR}/data/vector_dbs/{args.dataset}/{args.chunk_type}"
     children_chunks = load_children_chunks_from_chroma(VECTOR_STORE_PATH, embedding)
-    logger.info(f"Loaded children chunks from: {VECTOR_STORE_PATH}")
+    logger.info(f"Loaded {len(children_chunks)} children chunks from: {VECTOR_STORE_PATH}")
 
 
     # # 1. raw chunk ids for a single azienda

@@ -1,5 +1,6 @@
 # scripts/common_logging.py
 import logging, os, sys
+import time, datetime
 from logging.handlers import RotatingFileHandler
 
 def configure_logging(env_var="RAG_LOG_LEVEL", default_level=logging.INFO, logfile=None):
@@ -12,7 +13,7 @@ def configure_logging(env_var="RAG_LOG_LEVEL", default_level=logging.INFO, logfi
 
     handlers = [logging.StreamHandler(sys.stdout)]
     if logfile:
-        handlers.append(RotatingFileHandler(logfile, maxBytes=10_000_000, backupCount=3))
+        handlers.append(RotatingFileHandler(logfile, maxBytes=10_000_000, backupCount=3, encoding="utf-8"))
 
     logging.basicConfig(
         level=level,

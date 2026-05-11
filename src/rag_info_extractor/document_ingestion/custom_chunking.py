@@ -70,12 +70,99 @@ _NUMBER_TITLE = re.compile(
     """,
 )
 
+# TESTING PATTERNS
+_ART_WITH_NUM_poliambulatorio = re.compile(
+    r"""(?mx)                           # i: ignore case, m: multi-line, x: verbose
+    ^\s*
+    (?P<articolo>
+        (?:                          # "Art." or "Articolo/Articoli" with random inner spaces
+            A\s*[rR]\s*[tT]\s*\.? |
+            A\s*[rR]\s*[tT]\s*[iI1]\s*[cCÇ]\s*[oO0]\s*[lL1I]\s*[oO0](?:\s*[iI1])?
+        )
+        \s*
+        (?:                          # optional "n./num./n°/nº" with OCR noise
+            (?:[Nn]\s*(?:[\.\º°]|o)) |
+            (?:[Nn]\s*[uU]\s*[mM]\s*[\.\º°]?)
+        )?
+        \s*
+        (?:                          # number: arabic or roman
+            [0-9]{1,3} |
+            [IVXLCDMivxlcdm]{1,8}
+        )
+        (?:\s*
+            (?:bis|ter|quater|quinquies|sexies|septies|octies|nonies|decies)
+        )?
+        (?:\s*[-–]\s*
+            (?:[0-9]{1,3}|[IVXLCDMivxlcdm]{1,8})
+        )?
+    )
+    \s*[\-–:\.\)]*\s*                # separators after the header
+    (?P<title>[^\n]{0,160})?         # optional title on same line
+    \s*$
+    """,
+) # only removed ignorecase
 
+_NUMBER_TITLE_unica_societa_benefit = re.compile(
+    r"""(?imx)
+    ^\s*
+    (?P<num>                         # number with optional inner spaces
+        (?:(?:\d\s*){1,3}) |
+        (?:(?:[IVXLCDMivxlcdm]\s*){1,8})
+    )
+    \s*[\-–:\.\)](?!\d)\s*                 # separator
+    (?-i:
+        (?P<title>
+            [A-ZÀ-ÖØ-Ý0-9]
+            (?:\s?[A-ZÀ-ÖØ-Ý0-9'’\-&,\.\/]){2,}   # allow spaced-out capitals: C A P I T A L E
+        )
+    )
+    \s*$
+    """,
+) # added negative lookhead
+
+_NUMBER_TITLE_cnc_world = re.compile(
+    r"""(?imx)
+    ^\s*
+    (?-i:
+        (?P<title>
+            [A-ZÀ-ÖØ-Ý0-9]
+            (?:\s*?[A-ZÀ-ÖØ-Ý0-9a-z'’\-&,\.\/]){2,54}   # allow spaced-out capitals: C A P I T A L E
+        )
+    )
+    \s*
+    (?P<num>                         # number with optional inner spaces
+        (?:(?:\d\s*){1,3}) |
+        (?:(?:[IVXLCDMivxlcdm]\s*){1,8})
+    )$
+    """,
+) # title before number
+
+_NUMBER_TITLE_logistica_rapida = re.compile(
+    r"""(?imx)
+    ^\s*
+    (?P<num>                         # number with optional inner spaces
+        (?:(?:\d\s*){1,3}) |
+        (?:(?:[IVXLCDMivxlcdm]\s*){1,8})
+    )
+    \s*[\-–:\.\)]?\s*                 # separator
+    (?-i:
+        (?P<title>
+            [A-ZÀ-ÖØ-Ý0-9]
+            (?:\s?[A-ZÀ-ÖØ-Ý0-9a-z'’\-&,\.\/]){2,}   # allow spaced-out capitals: C A P I T A L E
+        )
+    )
+    \s*$
+    """,
+) # allow non-capital a-z in title
 
 
 ARTICLE_PATTERNS: Dict[str, Pattern] = {
     "art_keyword": _ART_WITH_NUM,
     "number_title": _NUMBER_TITLE,
+    "art_keyword_poliambulatorio": _ART_WITH_NUM_poliambulatorio,
+    "number_title_unica_societa_benefit": _NUMBER_TITLE_unica_societa_benefit,
+    "number_title_cnc_world": _NUMBER_TITLE_cnc_world,
+    "number_title_logistica_rapida": _NUMBER_TITLE_logistica_rapida
 }
 
 
@@ -573,7 +660,7 @@ if __name__ == "__main__":
         tokenizer,
         evaluator_llm=EVALUATOR_LLM,
         max_embed_tokens=MAX_EMBED_TOKENS,
-        use_llm=True,
+        use_llm=True, 
         pages_joining_str=PAGES_JOINING_STR
     ))
     

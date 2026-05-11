@@ -173,72 +173,82 @@ def _load_pdf_sync(
         d.metadata["filename"] = path.name
 
 
-    # Use LLM to extract name of the azienda
-    first_page = re.split(fr"{joining_str}", d.page_content, 1)[0]
-    extract_metadata_functions = []
-    if extract_azienda_name:
-        extract_metadata_functions.append(_get_name_azienda)
-    else:
-        d.metadata["azienda"] = ""
+        # Use LLM to extract name of the azienda
+        first_page = re.split(fr"{joining_str}", d.page_content, 1)[0]
+        extract_metadata_functions = []
+        if extract_azienda_name:
+            extract_metadata_functions.append(_get_name_azienda)
+        else:
+            d.metadata["azienda"] = ""
 
-    if extract_azienda_sede:
-        extract_metadata_functions.append(_get_sede_azienda)
-    else:
-        d.metadata["sede"] = ""
+        if extract_azienda_sede:
+            extract_metadata_functions.append(_get_sede_azienda)
+        else:
+            d.metadata["sede"] = ""
 
 
-    if extract_metadata_functions:
-        azienda_name_extracted = False
-        azienda_sede_extracted = False
+        if extract_metadata_functions:
+            azienda_name_extracted = False
+            azienda_sede_extracted = False
 
-        output_get_azienda_metadatas = asyncio.run(_get_metadata_azienda(
-            page_content = first_page,
-            llm_model = llm_model,
-            extract_metadata_functions = extract_metadata_functions
-        ))
+            output_get_azienda_metadatas = asyncio.run(_get_metadata_azienda(
+                page_content = first_page,
+                llm_model = llm_model,
+                extract_metadata_functions = extract_metadata_functions
+            ))
 
-        metadatas = {}
-        for m in output_get_azienda_metadatas:
-            metadatas.update(m.model_dump())
-        azienda_name = metadatas.get("azienda_name")
-        azienda_sede = metadatas.get("azienda_sede")
+            metadatas = {}
+            for m in output_get_azienda_metadatas:
+                metadatas.update(m.model_dump())
+            azienda_name = metadatas.get("azienda_name")
+            azienda_sede = metadatas.get("azienda_sede")
 
-        # check if azienda_name and azienda_sede extracted
-        azienda_name_extracted = azienda_name and (azienda_name.lower() != "non ho trovato")
-        azienda_sede_extracted = azienda_sede and (azienda_sede.lower() != "non ho trovato")
+            # check if azienda_name and azienda_sede extracted
+            azienda_name_extracted = azienda_name and (azienda_name.lower() != "non ho trovato")
+            azienda_sede_extracted = azienda_sede and (azienda_sede.lower() != "non ho trovato")
 
-        # If not found on first page, search for relevant pieces ("Denominazione" for azienda_name, "Sede" for azienda_sede)
-        if not azienda_name_extracted:
-            matches = regex.findall(r"(?is)(.{0,500})((?b)(?:denominazione|denominiazione){e<=2}(?:.{0,100}?e['’`´]?\s*c[o0]st[i1]t[uuv]i?t[àa]\s+la\s+societ[àa].{0,500})?)(.{0,500})", text)
-            if matches:
-                content_to_search_name = "\n\n".join(" ".join(match) for match in matches)
-                output_get_azienda_name = asyncio.run(_get_metadata_azienda(
-                    page_content = content_to_search_name,
-                    llm_model = llm_model,
-                    extract_metadata_functions = [_get_name_azienda]
-                ))
+            # If not found on first page, search for relevant pieces ("Denominazione" for azienda_name, "Sede" for azienda_sede)
+            if not azienda_name_extracted:
+                matches = regex.findall(r"(?is)(.{0,500})((?b)(?:denominazione|denominiazione){e<=2}(?:.{0,100}?e['’`´]?\s*c[o0]st[i1]t[uuv]i?t[àa]\s+la\s+societ[àa].{0,500})?)(.{0,500})", text)
+                if matches:
+                    content_to_search_name = "\n\n".join(" ".join(match) for match in matches)
+                    output_get_azienda_name = asyncio.run(_get_metadata_azienda(
+                        page_content = content_to_search_name,
+                        llm_model = llm_model,
+                        extract_metadata_functions = [_get_name_azienda]
+                    ))
 
-                for m in output_get_azienda_name:
-                    azienda_name = m.model_dump().get("azienda_name")
-                azienda_name_extracted = True # set to true to not enter in infinite loop to search if can't find
-        
-        if not azienda_sede_extracted:
-            matches = regex.findall(r"(?is)(?:sede(?:\s+legale|\s+sociale)?|con\s+sede|con\s+la\s+sede|domicilio\s+legale|sede\s+in)[\s\:\-–—]*(.{5,250}?)?(?=[\.\r\n]|$)", text)
-            if matches:
-                content_to_search_sede = "\n\n".join(" ".join(match) for match in matches)
-                output_get_azienda_sede = asyncio.run(_get_metadata_azienda(
-                    page_content = content_to_search_sede,
-                    llm_model = llm_model,
-                    extract_metadata_functions = [_get_sede_azienda]
-                ))
+                    for m in output_get_azienda_name:
+                        azienda_name = m.model_dump().get("azienda_name")
+                    azienda_name_extracted = True # set to true to not enter in infinite loop to search if can't find
+            
+            if not azienda_sede_extracted:
+                matches = regex.findall(r"(?is)(?:sede(?:\s+legale|\s+sociale)?|con\s+sede|con\s+la\s+sede|domicilio\s+legale|sede\s+in)[\s\:\-–—]*(.{5,250}?)?(?=[\.\r\n]|$)", text)
+                if matches:
+                    content_to_search_sede = "\n\n".join(" ".join(match) for match in matches)
+                    output_get_azienda_sede = asyncio.run(_get_metadata_azienda(
+                        page_content = content_to_search_sede,
+                        llm_model = llm_model,
+                        extract_metadata_functions = [_get_sede_azienda]
+                    ))
 
-                for m in output_get_azienda_sede:
-                    azienda_sede = m.model_dump().get("azienda_sede")
-                azienda_sede_extracted = True # set to true to not enter in infinite loop to search if can't find
-        
-        # set azienda_name and azienda_sede
-        d.metadata["azienda"] = azienda_name.lower() if isinstance(azienda_name, str) else ""
-        d.metadata["sede"] = azienda_sede.lower() if isinstance(azienda_sede, str) else ""
+                    for m in output_get_azienda_sede:
+                        azienda_sede = m.model_dump().get("azienda_sede")
+                    azienda_sede_extracted = True # set to true to not enter in infinite loop to search if can't find
+            
+            # set azienda_name and azienda_sede
+            d.metadata["azienda"] = azienda_name.lower() if isinstance(azienda_name, str) else ""
+            d.metadata["sede"] = azienda_sede.lower() if isinstance(azienda_sede, str) else ""
+
+
+            # # ==================== FOR QUICK TESTING =========================================
+            # ext = path.suffix
+            # filename, azienda_name = re.split(r"___", path.name)
+            # filename, azienda_name = filename + ext, azienda_name.replace(ext, "") # assume: filename__aziendaname.pdf
+            # d.metadata["filename"] = filename
+            # d.metadata["azienda"] = azienda_name.lower()
+            # d.metadata["sede"] = ""
+            # # =========================   XXX   =========================================
 
         
     return docs
@@ -258,7 +268,7 @@ async def aload_pdfs(
     split: bool = True,
     chunk_size: int = 430,
     chunk_overlap: int = 105,
-    chunks_type: Literal["fixed_size_chunks", "custom_chunks", "semantic_chunks"] = "custom_chunks",
+    chunks_type: Literal["fixed_size_chunks", "custom_chunks", "semantic_chunks", "custom_chunks_2"] = "custom_chunks",
     **kwargs
 ) -> Dict[str, List[Document]]:
     """Asynchronously load and optionally split all PDFs from a local folder."""
@@ -300,7 +310,7 @@ async def aload_pdfs(
         )
     
 
-    if chunks_type == "custom_chunks":
+    if (chunks_type == "custom_chunks") or (chunks_type == "custom_chunks_2"):
         logger.info("Trying to Split using 'Custom Chunking'...")
         output = await custom_chunking(
             docs,
@@ -338,8 +348,9 @@ async def aload_pdfs(
             )
             parent_chunks, children_chunks = output["parent_chunks"], output["children_chunks"]
     
-    elif chunks_type == "semantic_chunks":
-        logger.info("Trying to Split using 'Semantic Chunking'...")
+    elif chunks_type == "semantic_chunks": 
+        BREAKPOINT_THRESHOLD = 0.8
+        logger.info(f"Trying to Split using 'Semantic Chunking' with THRESHOLD={BREAKPOINT_THRESHOLD}...")
         # embedding_func = HuggingFaceEmbeddings(
         #     model_name=HF_embedding_model_name,
         #     encode_kwargs={"normalize_embeddings": True}
@@ -348,7 +359,7 @@ async def aload_pdfs(
 
         output = await semantic_chunking_async(
             docs, embedding_func, tokenizer, child_splitter, max_embed_tokens=max_embed_tokens,
-            pages_joining_str=kwargs.get("pages_joining_str"), max_concurrency=8
+            pages_joining_str=kwargs.get("pages_joining_str"), max_concurrency=8, breakpoint_threshold_amount=BREAKPOINT_THRESHOLD
         )
         parent_chunks, children_chunks = output["parent_chunks"], output["children_chunks"]
         

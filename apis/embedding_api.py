@@ -125,7 +125,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging") # For DEBUG level logging, run in cli: python .\re_ranker_api.py --verbose or -v
     args = parser.parse_args()
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
-    logger.info(f"Launching EMBEDDING API (RAG_CHATBOT/apis/embedding_api.py)")
+    logger.info(f"Launching EMBEDDING API (RAG_INFORMATION_EXTRACTOR/apis/embedding_api.py)")
 
 
 

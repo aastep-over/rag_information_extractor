@@ -22,12 +22,13 @@ def semantic_chunking(
     max_embed_tokens: int,
     pages_joining_str: Optional[str],
     last_parent_id: int = -1,
-    last_child_id: int = -1
+    last_child_id: int = -1,
+    breakpoint_threshold_amount: Optional[float] = None
 
 ) -> Dict[str, List[Document]]:
 
     # Initialize and create semantic chunks
-    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile")
+    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=breakpoint_threshold_amount) # breakpoint_threshold_amount
     parent_chunks = semantic_chunker.create_documents(
         texts = [d.page_content for d in docs],
         metadatas = [d.metadata for d in docs]
@@ -98,12 +99,13 @@ async def semantic_chunking_async(
     pages_joining_str: Optional[str], 
     max_concurrency: int = 8,
     last_parent_id: int = -1,
-    last_child_id: int = -1
+    last_child_id: int = -1,
+    breakpoint_threshold_amount: Optional[float] = None
 
 ) -> Dict[str, List[Document]]: 
 
     # Initialize and create semantic chunks
-    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile")
+    semantic_chunker = SemanticChunker(embedding_func, breakpoint_threshold_type="percentile", breakpoint_threshold_amount=breakpoint_threshold_amount)
 
     # --- Split parents concurrently ---
     sem = asyncio.Semaphore(max_concurrency)
@@ -268,6 +270,7 @@ if __name__ == "__main__":
     # )
     
     # Create Chunks
+    BREAKPOINT_THRESHOLD = 0.95
     logger.info("Creating Chunks...")
     # chunks = asyncio.run(semantic_chunking_async(
     #     docs,
@@ -278,7 +281,8 @@ if __name__ == "__main__":
     #     pages_joining_str = PAGES_JOINING_STR, 
     #     max_concurrency = 8,
     #     last_parent_id = -1,
-    #     last_child_id = -1
+    #     last_child_id = -1,
+        # breakpoint_threshold_amount = BREAKPOINT_THRESHOLD  
     # ))
     chunks = semantic_chunking(
         docs,
@@ -288,7 +292,8 @@ if __name__ == "__main__":
         max_embed_tokens = MAX_EMBED_TOKENS,
         pages_joining_str = PAGES_JOINING_STR, 
         last_parent_id = -1,
-        last_child_id = -1
+        last_child_id = -1,
+        breakpoint_threshold_amount = BREAKPOINT_THRESHOLD
     )
 
 

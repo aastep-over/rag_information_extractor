@@ -1,8 +1,16 @@
-# Custom Files
+# Custom Files/Folders
 data
 runs
 notebooks/
 tests/Information_Extractor/
+.legacy_stuff/
+scripts/extract_info_v0.py
+.rough_work/
+.vscode/
+logs/
+tests/Information_Extractor/
+tests/results/
+
 
 
 

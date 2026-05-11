@@ -144,13 +144,9 @@ class CompanyMatcher:
         return out
 
 
-
-
-
 # ------------------------------
 # Example usage
 # ------------------------------
-# if __name__ == "__main__":
 #     companies = ['ospedale tortona società consortile a r.l.',
 #     'poliambulatorio 3d s.r.l.',
 #     'secur system group di romeo s.r.l.',
@@ -169,3 +165,17 @@ class CompanyMatcher:
 #     for q in queries:
 #         res = matcher.match(q, min_score=78, scorer=fuzz.token_set_ratio, top_k=1)
 #         print(f"\nQ: {q}\n→ {res}")
+
+# Check which models are available in Google API
+def check_google_api_models():
+    from google import genai
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+
+    client = genai.Client()
+    for m in client.models.list():
+        print(f"Name: {m.name} | Display: {m.display_name}")
+
+
+check_google_api_models()

@@ -30,7 +30,8 @@ def call_reranker_service(query: str, documents: List[str]) -> List[float] | Non
         response = requests.post(
             RERANKER_API, 
             json=payload, 
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=30.0
         )
         response.raise_for_status() # Launches an exception for error status
         
@@ -53,7 +54,8 @@ async def acall_reranker_service(query: str, documents: List[str]) -> List[float
             response = await client.post(
                 RERANKER_API,
                 json=payload, 
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
+                timeout=30.0
             )
         response.raise_for_status()
 

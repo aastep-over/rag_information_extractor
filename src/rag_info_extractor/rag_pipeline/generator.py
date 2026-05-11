@@ -3,9 +3,11 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import AIMessage
 
 # Python native
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import re
 import textwrap
+import os
+from dotenv import load_dotenv
 
 # from other modules
 from rag_info_extractor.utils.llm_connector import OllamaLLM
@@ -14,23 +16,14 @@ from rag_info_extractor.utils.llm_connector import OllamaLLM
 import logging
 logger = logging.getLogger(__name__)
 
+# Google API related
+from google import genai
+from tenacity import retry, wait_random_exponential
+from google.genai.types import GenerateContentConfig, HttpOptions
 
-def generate(
-    question: str,
-    contexts: List[Document],
-    llm: OllamaLLM,
-    additional_prompt: str = "",
-    contexts_sep: str = "||"
 
-) -> str:
-    
-    """Generate answer to query/question using the context retrieved by the retriever"""
-
-    logger.info("\n --------------- NODE: __generate__ ------------------------\n")###
-    docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
-    
-    # System prompt
-    system_prompt = textwrap.dedent("""\
+# Define System prompt for generation
+SYSTEM_PROMPT = textwrap.dedent("""\
         SYSTEM:
         Sei un analista di statuti societari.
 
@@ -52,102 +45,167 @@ def generate(
         {question}                          
     """)
 
+# =======================================
+#  Answer with GOOGLE API
+# =======================================
+@retry(wait=wait_random_exponential(min=1, max=60))
+def answer_with_GOOGLE_API(
+    prompt_content: str
+):
+
+    # The client gets the API key from the environment variable `GEMINI_API_KEY`.
+    client = genai.Client() #api_key=os.environ.get("GOOGLE_API_KEY")
+
+    # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
+    response = client.models.generate_content(
+        model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
+        contents=prompt_content,
+        config=GenerateContentConfig(
+            temperature=0.0
+        )
+    )
+
+    return response
+
+# Async version
+@retry(wait=wait_random_exponential(min=1, max=60))
+async def aanswer_with_GOOGLE_API(
+    prompt_content: str,
+):
+
+    # The client gets the API key from the environment variable `GEMINI_API_KEY`.
+    client = genai.Client(http_options=HttpOptions())
+
+    # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
+    response = await client.aio.models.generate_content(
+        model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
+        contents=prompt_content,
+        config=GenerateContentConfig(
+            temperature=0.0,
+        )
+    )
+
+    return response
+
+
+
+# ======= MAIN function ===============
+
+def generate(
+    question: str,
+    contexts: List[Document],
+    llm: OllamaLLM,
+    additional_prompt: str = "",
+    contexts_sep: str = "||",
+    use_google_api: bool = False,
+
+) -> str:
+    
+    """Generate answer to query/question using the context retrieved by the retriever"""
+
+    logger.info("\n --------------- NODE: __generate__ ------------------------\n")###
+    docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
     
     # Remove name of società to avoid confusion for llm
-    contain_name = re.findall(r"(.*) Nome della società: .*", question)
+    contain_name = re.findall(r"(.*) Nome della società: (.*)", question) 
     if contain_name:
-        q = contain_name[0]
+        q = contain_name[0][0]
+        azienda_name = contain_name[0][1]
     else:
         q = question
 
     # Update prompt with additional_instruction, context and question
-    prompt_content = system_prompt.replace("{additional_prompt}", additional_prompt)
+    prompt_content = SYSTEM_PROMPT.replace("{additional_prompt}", additional_prompt)
     prompt_content = prompt_content.replace("{context}", docs_content)
     prompt_content = prompt_content.replace("{question}", q)
     
-    ai_answer: AIMessage = llm.invoke(
-        output_format = "text",
-        memory = prompt_content,
-        num_predict = 500,
-        temperature = 0
-    ) # type: ignore
+    # TODO: Fix to OLD BLOCK after testing
+    # ========== NEW BLOCK ===============
+    if use_google_api:
+        if contain_name:
+            prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
+        response_api = answer_with_GOOGLE_API(prompt_content)
+        ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
+    # =========== XXX ===================
+    else:
+    # ======= OLD BLOCK ================
+        ai_answer: AIMessage = llm.invoke(
+            output_format = "text",
+            memory = prompt_content,
+            num_predict = 500,
+            temperature = 0
+        ) # type: ignore
+    # =========== XXX ===================
 
     if isinstance(ai_answer.content, str):
         answer = ai_answer.content.strip() 
     else:
         answer = "Non ho trovato la risposta"
-        
+
+    return answer
+
+# Async version
+async def agenerate(
+    question: str,
+    contexts: List[Document],
+    llm: OllamaLLM,
+    additional_prompt: str = "",
+    contexts_sep: str = "||",
+    use_google_api: bool = False,
+    
+) -> str:
+
+    """Async implementation of generate"""
+
+    logger.info("\n --------------- NODE: __generate__ ------------------------\n")###
+    docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
+    
+    # Remove name of società to avoid confusion for llm
+    contain_name = re.findall(r"(.*) Nome della società: (.*)", question) 
+    if contain_name:
+        q = contain_name[0][0]
+        azienda_name = contain_name[0][1]
+    else:
+        q = question
+    
+    # Update prompt with additional_instruction, context and question
+    prompt_content = SYSTEM_PROMPT.replace("{additional_prompt}", additional_prompt)
+    prompt_content = prompt_content.replace("{context}", docs_content)
+    prompt_content = prompt_content.replace("{question}", q)
+
+    # TODO: Fix to OLD BLOCK after testing
+    # ========== NEW BLOCK ===============
+    if use_google_api:
+        if contain_name:
+            prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
+        response_api = await aanswer_with_GOOGLE_API(prompt_content)
+        ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
+    # =========== XXX ===================
+    else:
+        # ======= OLD BLOCK ================
+        ai_answer: AIMessage = await llm.ainvoke(
+            output_format = "text",
+            memory = prompt_content,
+            num_predict = 500,
+            temperature = 0
+        ) # type: ignore
+        # =========== XXX ===================
+
+    if isinstance(ai_answer.content, str):
+        answer = ai_answer.content.strip() 
+    else:
+        answer = "Non ho trovato la risposta"
+
     return answer
 
 
-def generate_legacy():
-#     question: str,
-#     contexts: List[Document],
-#     llm_model: str,
-#     additional_prompt: str = ""
-
-# ) -> str:
-    
-    # """Generate answer to query/question using the context retrieved by the retriever"""
-
-    # print("\n --------------- NODE: __generate__ ------------------------\n")###
-    # docs_content = "||".join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
-    # llm = ChatOllama(
-    #     model=llm_model,
-    #     temperature=0,
-    #     num_predict=500,  
-    #     cache=False,
-    # )
-    # # Prompt
-    # answer_llm_prompt = PromptTemplate.from_template(
-    #     """Sei un analista di statuti societari.
-
-    #     ISTRUZIONI:
-    #     - Ti verranno dati più CHUNK separati da "||".
-    #     - Leggi ogni CHUNK separatamente per trovare la risposta alla domanda.
-    #     - Usa solo le informazioni esplicite nei chunk.
-    #     - Se più chunk contengono parti utili, combina solo ciò che serve in una frase chiara e breve.
-    #     - Se nessuno contiene la risposta, scrivi esattamente: "Non ho trovato la risposta nei documenti forniti".
-    #     - Rispondi sempre in italiano, senza elenco puntato o testo extra.
-        
-    #     {additional_prompt}
-
-    #     CONTESTO:
-    #     {context}
-
-    #     DOMANDA:
-    #     {question}"""
-    #     )
-    
-    
-    # # Remove name of società to avoid confusion for llm
-    # contain_name = re.findall(r"(.*) Nome della società: .*", question)
-    # if contain_name:
-    #     q = contain_name[0]
-    # else:
-    #     q = question
-    # answer_llm_msg = answer_llm_prompt.invoke({
-    #     "context": docs_content,
-    #     "question": q,
-    #     "additional_prompt": additional_prompt 
-    # })
-    
-    # answer = llm.invoke(answer_llm_msg)
-    # if isinstance(answer.content, str):
-    #     answer = answer.content.strip()
-    # else:
-    #     answer = "Non ho trovato la risposta"
-        
-    # return answer
-    pass
-
-
 if __name__ == "__main__":
-    import yaml, os, time
+    import yaml, os, time, asyncio
     from pathlib import Path
     from rag_info_extractor.utils.common_logging import configure_logging
     import argparse
     from rag_info_extractor.utils.load_config import cfgs
+
 
     t0 = time.time()
     
@@ -158,14 +216,11 @@ if __name__ == "__main__":
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     logger.info(f"Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
 
-    # # CONFIG FILE SETTINGS:
-    # cfg_path = Path("D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/config.yaml")
-    # with open(cfg_path, "r", encoding="utf-8") as f:
-    #     configs = yaml.safe_load(f)
-
     cfgs = cfgs.get("args", {})
 
     LLM_MODEL = cfgs.get("LLM_MODEL") 
+    BASE_DIR = cfgs.get("BASE_DIR")
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
 
     # Query and Aziende (EXAMPLE)
     QUESTION = "Agli amministratori spetta il rimborso delle spese?"
@@ -188,12 +243,23 @@ if __name__ == "__main__":
 
     # Run Generator
     logger.info("Generating answer...")
+    
     answer = generate(
         question = QUESTION,
         contexts = CONTEXTS,
-        llm = llm
+        llm = llm,
+        use_google_api = True
     )
 
+    # Async version
+    # answer = asyncio.run(
+    #     agenerate(
+    #         question = QUESTION,
+    #         contexts = CONTEXTS,
+    #         llm = llm,
+    #         use_google_api = False
+    #     )
+    # )
 
 
     with open("output_temp", "w", encoding="utf-8") as f:

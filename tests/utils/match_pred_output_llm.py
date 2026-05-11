@@ -456,7 +456,7 @@ if __name__ == "__main__":
         description="Load paths to combined_raw_json and pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
+        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/custom_chunks_2/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True

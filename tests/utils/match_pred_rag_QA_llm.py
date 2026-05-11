@@ -544,7 +544,7 @@ if __name__ == "__main__":
         description="Load paths to combined_raw_json and pred_json(output/extracted data json file)"
     )
     parser.add_argument(
-        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/fixed_size_chunks/combined_data.json"
+        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/custom_chunks_2/combined_data.json"
         type=str,
         help="Path(relative) to combined_raw_json file",
         required=True
@@ -569,12 +569,12 @@ if __name__ == "__main__":
         default=""
     )
     parser.add_argument(
-        "--doc-store-large-chunks-path", # --doc-store-large-chunks-path "data/large_chunks_dbs/TRAIN/fixed_size_chunks"
+        "--doc-store-large-chunks-path", # --doc-store-large-chunks-path "data/large_chunks_dbs/TRAIN/custom_chunks_2"
         type=str,
         help="Path (relative) to document store containing larger(parent) chunks."
     )
     parser.add_argument(
-        "--vector-store-path", #  --vector-store-path "data/vector_dbs/TRAIN/fixed_size_chunks"
+        "--vector-store-path", #  --vector-store-path "data/vector_dbs/TRAIN/custom_chunks_2"
         type=str,
         help="Path (relative) to vector store (DB) containing smaller embedded (child) chunks."
     )

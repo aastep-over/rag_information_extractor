@@ -123,7 +123,7 @@ if __name__ == "__main__":
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
-    DATASET_TYPE = cfgs.get("DATASET_TYPE") 
+    DATASET_TYPE = cfgs.get("DATASET_TYPE")  
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE")
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     BASE_DIR = cfgs.get("BASE_DIR", "./")
     
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE)
-    DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/large_chunks_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
-    VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, CHUNKS_TYPE) # f"../data/vector_dbs/{DATASET_TYPE}/{CHUNKS_TYPE}"
+    DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, f"{CHUNKS_TYPE}")  # TODO: REMOVE "__0.8", its a setting (BREAKPOINT_THRESHOLD) in src/rag_info_extractor/document_ingestion/load_docs.py 
+    VECTOR_STORE_PATH = os.path.join(BASE_DIR, "data", "vector_dbs", DATASET_TYPE, f"{CHUNKS_TYPE}") # TODO: REMOVE "__0.8" 
 
     # Load env_vars
     load_dotenv(os.path.join(BASE_DIR, ".env"))

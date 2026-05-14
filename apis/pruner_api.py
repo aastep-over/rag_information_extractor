@@ -52,7 +52,7 @@ async def load_model(app: FastAPI):
     """
     global pruner_model
     try:
-        print(f"🔄 Caricamento del modello Re-ranker: {MODEL_NAME_OR_PATH}")
+        print(f"🔄 Caricamento del modello Pruner: {MODEL_NAME_OR_PATH}")
         # Load the Cross-Encoder model from path
         pruner_model = AutoModel.from_pretrained(
             MODEL_NAME_OR_PATH,

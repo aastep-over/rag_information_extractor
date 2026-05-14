@@ -124,7 +124,7 @@ if __name__ == "__main__":
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     logger.info(f"Launching ReRanker API (RAG_CHATBOT/apis/re_ranker_api.py)")
 
-    PORT = int(os.getenv("PORT", 8000))
+    # PORT = int(os.getenv("PORT", 8000))
 
     # Start Uvicorn to serve FASTAPI app
-    uvicorn.run(app, host="localhost", port=PORT)
+    uvicorn.run(app, host="localhost", port=8000)

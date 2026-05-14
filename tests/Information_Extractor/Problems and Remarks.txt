@@ -1,8 +1,0 @@
-**Best Configuration until now**:
-chunking: custom > fixed > semantic > fixed (Parent-Child)
-
-
-
-
-**Problems/Remarks**
-- Nel Information Extractor Pipeline, il parte della estrazione fa fatica ad estrarre le informazioni dalla risposta. Questo è il limite del modello di Llama 3.2:3b perchè con Mistral-7b, non ho notato questo problema. 

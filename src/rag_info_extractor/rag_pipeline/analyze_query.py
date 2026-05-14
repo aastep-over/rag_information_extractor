@@ -12,7 +12,7 @@ load_dotenv()
 
 # GEMINI API prova
 from google import genai
-from google.genai.types import GenerateContentConfig, HttpOptions
+from google.genai import types
 from tenacity import retry, wait_random_exponential
 
 # Third-party libraries
@@ -40,15 +40,27 @@ def extract_with_GOOGLE_API(
 ):
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    client = genai.Client()
+    retry_options = types.HttpRetryOptions(
+        initial_delay=2.0,      
+        max_delay=60.0,         
+        exp_base=2.0,         
+        attempts=10,             
+        http_status_codes=[408, 429, 500, 502, 503, 504]
+    )
+
+    client = genai.Client(
+        http_options=types.HttpOptions(
+            retry_options=retry_options
+        )
+    )
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
     response = client.models.generate_content(
         model=os.environ.get("ANALYZE_QUERY__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
-        config=GenerateContentConfig(
+        config=types.GenerateContentConfig(
             temperature=0.1,
-            response_json_schema=info_schema.model_json_schema()#['properties']
+            # response_json_schema=info_schema.model_json_schema()#['properties']
         )
     )
 
@@ -72,17 +84,28 @@ async def aextract_with_GOOGLE_API(
     prompt_content: str,
     info_schema: BaseModel,
 ):
-
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    client = genai.Client(http_options=HttpOptions())
+    retry_options = types.HttpRetryOptions(
+        initial_delay=2.0,      
+        max_delay=60.0,         
+        exp_base=2.0,         
+        attempts=10,             
+        http_status_codes=[408, 429, 500, 502, 503, 504]
+    )
+
+    client = genai.Client(
+        http_options=types.HttpOptions(
+            retry_options=retry_options
+        )
+    )
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
     response = await client.aio.models.generate_content(
         model=os.environ.get("ANALYZE_QUERY__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
-        config=GenerateContentConfig(
+        config=types.GenerateContentConfig(
             temperature=0.1,
-            response_json_schema=info_schema.model_json_schema()['properties']
+            # response_json_schema=info_schema.model_json_schema()['properties']
         )
     )
 
@@ -239,7 +262,7 @@ async def aanalyze_query(
     
     nome_azienda (str): name of the società for which the information needs to be extracted 
     """
-    logger.info("\n --------------- NODE: __aanalyze_query__ ------------------------\n")###
+    logger.info("\n --------------- NODE: (async) __analyze_query__ ------------------------\n")###
     
     system_prompt = ANALYZE_QUERY_SYSTEM_PROMPT.replace("{module_json_schema_properties}", json.dumps(Search.model_json_schema()['properties'], indent=2, ensure_ascii=False))
     prompt_content = system_prompt + question

@@ -11,7 +11,6 @@ from rag_info_extractor.utils.load_config import cfgs
 
 
 
-
 # Load configs and environment vars
 cfgs = cfgs.get("args", {})
 BASE_DIR = cfgs.get("BASE_DIR")
@@ -31,7 +30,7 @@ def call_reranker_service(query: str, documents: List[str]) -> List[float] | Non
             RERANKER_API, 
             json=payload, 
             headers={"Content-Type": "application/json"},
-            timeout=30.0
+            timeout=1000.0
         )
         response.raise_for_status() # Launches an exception for error status
         
@@ -55,7 +54,7 @@ async def acall_reranker_service(query: str, documents: List[str]) -> List[float
                 RERANKER_API,
                 json=payload, 
                 headers={"Content-Type": "application/json"},
-                timeout=30.0
+                timeout=1000.0
             )
         response.raise_for_status()
 
@@ -63,7 +62,7 @@ async def acall_reranker_service(query: str, documents: List[str]) -> List[float
         return result['scores']
 
     except httpx.HTTPStatusError as e:
-        print(f"(async) Errore nella chiamata al servizio API: {e}")
+        print(f"Errore nella chiamata al servizio API: {e}")
         return None
 
 
@@ -83,7 +82,6 @@ def call_pruner_service(query: str, documents: List[str]) -> List[str]:
             headers={"Content-Type": "application/json"}
         )
         response.raise_for_status() # Launches an exception for error status
-        
         result = response.json()
         return result['pruned_docs']
         

@@ -108,14 +108,16 @@ def return_default_json(basemodel_json_schema_properties: dict) -> dict:
     return default_json
 
 def return_keys_description_schema(schema: BaseModel) -> str:
-    output = {}
+    output_structure = {}
+    keys_description = "Descrizione delle chiavi:"
+
     for k, v in schema.model_json_schema()['properties'].items():
-        output[k] = {
-            "descrizione": v['description'],
-            "type": v['type']
-        }
+        output_structure[k] = ""
+        keys_description += f"\n{k}: {v['description']} (type: {v['type']})"
     
-    return json.dumps(output, indent=4, ensure_ascii=False)
+    output = f"{json.dumps(output_structure, indent=4, ensure_ascii=False)}\n\n{keys_description}"
+    
+    return output
 
 # Load all the schemas of info to be extracted from ./schemas
 def load_classes_from_path(

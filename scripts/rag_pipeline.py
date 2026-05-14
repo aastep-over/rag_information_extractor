@@ -204,14 +204,8 @@ class RAGPipeline:
             azienda_name_records = self.azienda_name_records,
             use_google_api = self.use_google_api
         )
-        # ==================== FOR QUICK TESTING =========================================
-        # question, optimized_query, azienda_name= re.findall(r"(.*) QUERY: (.*) Nome della società: (.*)", state['question'])[0] # TODO: REMOVE AFTER TESTING
-        # state['question'] = question
-        # response = Search(query=optimized_query, azienda=azienda_name) # TODO: REMOVE AFTER TESTING
-        # =========================   XXX   =========================================
         
         self.latency['analyze_query'] = f"{time.time() - t1:.3f} s"
-        # save query for testing
         self.optimized_query = {"query": response.query, "azienda": response.azienda}###
 
         logger.debug(f"\nOutput of (async) analyze_query:\n'query': {response}\n\n")

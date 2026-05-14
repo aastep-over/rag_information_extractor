@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Google API related
 from google import genai
 from tenacity import retry, wait_random_exponential
-from google.genai.types import GenerateContentConfig, HttpOptions
+from google.genai import types
 
 
 # Define System prompt for generation
@@ -54,13 +54,25 @@ def answer_with_GOOGLE_API(
 ):
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    client = genai.Client() #api_key=os.environ.get("GOOGLE_API_KEY")
+    retry_options = types.HttpRetryOptions(
+        initial_delay=2.0,      
+        max_delay=60.0,         
+        exp_base=2.0,         
+        attempts=10,             
+        http_status_codes=[408, 429, 500, 502, 503, 504]
+    )
+
+    client = genai.Client(
+        http_options=types.HttpOptions(
+            retry_options=retry_options
+        )
+    )
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
     response = client.models.generate_content(
         model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
-        config=GenerateContentConfig(
+        config=types.GenerateContentConfig(
             temperature=0.0
         )
     )
@@ -74,13 +86,25 @@ async def aanswer_with_GOOGLE_API(
 ):
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    client = genai.Client(http_options=HttpOptions())
+    retry_options = types.HttpRetryOptions(
+        initial_delay=2.0,      
+        max_delay=60.0,         
+        exp_base=2.0,         
+        attempts=10,             
+        http_status_codes=[408, 429, 500, 502, 503, 504]
+    )
+
+    client = genai.Client(
+        http_options=types.HttpOptions(
+            retry_options=retry_options
+        )
+    )
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
     response = await client.aio.models.generate_content(
         model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
-        config=GenerateContentConfig(
+        config=types.GenerateContentConfig(
             temperature=0.0,
         )
     )
@@ -119,23 +143,18 @@ def generate(
     prompt_content = prompt_content.replace("{context}", docs_content)
     prompt_content = prompt_content.replace("{question}", q)
     
-    # TODO: Fix to OLD BLOCK after testing
-    # ========== NEW BLOCK ===============
     if use_google_api:
         if contain_name:
             prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
         response_api = answer_with_GOOGLE_API(prompt_content)
         ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
-    # =========== XXX ===================
     else:
-    # ======= OLD BLOCK ================
         ai_answer: AIMessage = llm.invoke(
             output_format = "text",
             memory = prompt_content,
             num_predict = 500,
             temperature = 0
         ) # type: ignore
-    # =========== XXX ===================
 
     if isinstance(ai_answer.content, str):
         answer = ai_answer.content.strip() 
@@ -157,7 +176,7 @@ async def agenerate(
 
     """Async implementation of generate"""
 
-    logger.info("\n --------------- NODE: __generate__ ------------------------\n")###
+    logger.info("\n --------------- NODE: (async) __generate__ ------------------------\n")###
     docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
     
     # Remove name of società to avoid confusion for llm
@@ -173,23 +192,18 @@ async def agenerate(
     prompt_content = prompt_content.replace("{context}", docs_content)
     prompt_content = prompt_content.replace("{question}", q)
 
-    # TODO: Fix to OLD BLOCK after testing
-    # ========== NEW BLOCK ===============
     if use_google_api:
         if contain_name:
             prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
         response_api = await aanswer_with_GOOGLE_API(prompt_content)
         ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
-    # =========== XXX ===================
     else:
-        # ======= OLD BLOCK ================
         ai_answer: AIMessage = await llm.ainvoke(
             output_format = "text",
             memory = prompt_content,
             num_predict = 500,
             temperature = 0
         ) # type: ignore
-        # =========== XXX ===================
 
     if isinstance(ai_answer.content, str):
         answer = ai_answer.content.strip() 

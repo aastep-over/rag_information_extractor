@@ -5,9 +5,9 @@ args:
   MAX_EMBED_TOKENS: 512      ## SentenceTransformer(EMBEDDING_MODEL_NAME).max_seq_length
 
   OLLAMA_HOST: "http://localhost:11434"
-  LLM_MODEL: "gemma3:4b" ## Any model from Ollama [gemma3:4b, ministral-3:3b-instruct-2512-q4_K_M, llama3.2:3b-instruct-q8_0, llama3.2:3b-instruct-q4_K_M, qwen3.5:4b]
+  LLM_MODEL: "gemma4:e2b" ## Any model from Ollama [gemma3:4b, ministral-3:3b-instruct-2512-q4_K_M, llama3.2:3b-instruct-q8_0, llama3.2:3b-instruct-q4_K_M, qwen3.5:4b]
   EVALUATOR_LLM: "mistral:7b-instruct" ## in ["gemma3:4b", "mistral:7b-instruct", qwen3.5:4b]
-  EXTRACTOR_LLM: "gemma3:4b" # ["ministral-3:3b-instruct-2512-q4_K_M", "llama3.2:3b-instruct-q4_K_M", "gemma3:4b", "qwen3.5:4b", "gemma4:e2b"]
+  EXTRACTOR_LLM: "gemma4:e2b" # ["ministral-3:3b-instruct-2512-q4_K_M", "llama3.2:3b-instruct-q4_K_M", "gemma3:4b", "qwen3.5:4b", "gemma4:e2b"]
   
   CHUNKS_TYPE: "custom_chunks_2"         ## one of: "custom_chunks", "fixed_size_chunks", "semantic_chunks", "custom_chunks_2"
 
@@ -31,4 +31,4 @@ args:
 
   RAG_PIPELINE: ["retrieve", "cross_encode_rerank", "generate"]
   RUN_ASYNC: true
-  USE_GOOGLE_API: true
+  USE_GOOGLE_API: false

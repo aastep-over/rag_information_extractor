@@ -1,210 +1,165 @@
-# RUNNING MODELS LOCALLY:
-### Ollama:
+# Rag Information Extractor
 
-### HF (reranker/embedding models)
-1. Create a separate directory to save huggingface models (preferebly in users/)
-2. Define an env. variable called "HF_MODELS" which stores the absolute path of the directory created in step 1.
-3. Copy the HF models (directories) located in the .cache/huggingface/hub/ in the directory created in step 1. (with the same name)
+Rag Information Extractor is a RAG (Retrieval-Augmented Generation) pipeline that extracts structured information from Italian company documents (statuti / financial statements) and evaluates the results. 
+This repository is a reconstructed version of my internship project.
+To respect proprietary confidentiality and maintain a manageable project scope, this reproduction omits certain  features and internal dependencies present in the original.
 
+Main components:
+- Document ingestion (PDF -> chunks -> vector store)
+- Retrieval -> optional pruning
+- Cross-encoder re-ranking
+- LLM-based structured extraction (returns valid JSON)
+- Evaluation utilities (matching + accuracy/runtime summaries)
 
+## Repository layout (high level)
+- `scripts/` : pipeline execution entrypoints (ingestion + extraction)
+- `apis/` : local microservices for embeddings, pruning, and re-ranking
+- `src/rag_info_extractor/` : RAG pipeline code (LangGraph nodes, schemas, utilities)
+- `evaluations/` : evaluation and matching scripts
 
-keys for combined_data.json: "values", "raw_contexts", "raw_contexts_ids", "raw_qa"
+## Prerequisites
+- Python `>= 3.10`
+- A working LLM runtime:
+  - Local via Ollama (default option in this repo)
+  - Optionally Google GenAI (see `USE_GOOGLE_API` in `config.yaml`)
+- (Recommended) Local microservices:
+  - Embedding service
+  - Pruner service
+  - Re-ranker service
 
-raw jsons must be saved as: azienda_name : {}
-combined raw json is saved in data/jsons/<TRAIN || TEST>/combined_data.json
-output files are saved in run/<TRAIN || TEST>/run_time/ with name: pred.json
-match_scores files are saved in run/<TRAIN || TEST>/run_time/ with name: match_scores.json
+## Install
+1. Create/activate a virtual environment (the repo scripts expect `.venv`).
+2. Install dependencies:
+   - `pip install -r requirements.txt`
+   - or `pip install -e .`
 
-# How to run Extraction:
-1. Check and adjust config.yaml file if needed
-2. Run the script run_apis.sh to run microservices of embedder, re-ranker and pruner
-3. Run the script run_extraction.sh
+## Configuration
+Edit `config.yaml`:
+- `BASE_DIR`: absolute path to this project root
+- `OLLAMA_HOST`, `LLM_MODEL`, `EVALUATOR_LLM`, `EXTRACTOR_LLM`
+- `EMBEDDING_MODEL_NAME`, `RERANKER_MODEL`, `PRUNER_MODEL`
+- `CHUNKS_TYPE`: ingestion chunking mode
+- `RAG_PIPELINE`: pipeline nodes to run (example: `["retrieve", "cross_encode_rerank", "generate"]`)
 
-# How to run TEST:
-1. After inserting raw data in jsons, find raw_context_ids by running find_raw_chunks_ids.py function: insert_chunk_id_to_combined_raw_json
-2. Run extraction pipeline by running run_extraction.sh
-3. Create match_scores.json by running the script tests/utils/match_pred_output_llm.py
-4. Verify manually and correct if needed match_scores.json by consulting the decision_logs.txt
-5. Create match_scores_qa.json by running the script tests/utils/match_pred_rag_QA.py
-6. Verify manually and correct if needed match_scores_qa.json by consulting the decision_logs_qa.txt
-7. Finally run eval_overall.py
+### Environment files
+The microservices and the connector code load environment variables from dotenv files in `BASE_DIR`.
 
-# Notes:
-- qwen3.5:4b is not good at extracting structured json format
-- To select the nodes of rag_pipeline, change it in scripts/rag_pipeline.py
-- when loading huggingface models from local paths, we need to adjust a bit for e.g._
-    - Pruner: copy path directly from huggingface for first download, set local_files_only=False in scripts/rag_pipeline.py for first run
+Create at least:
+- `BASE_DIR/.env`
 
-# Structures of raw and pred jsons:
-**raw_data.json:**
+Additionally, note that:
+- `apis/pruner_api.py` and `apis/re_ranker_api.py` load `BASE_DIR/.env.txt`
+- `src/rag_info_extractor/utils/apis_connector.py` loads `BASE_DIR/.env`
+
+So, depending on your setup, you may need to create both `.env` and `.env.txt` (or ensure the required variables exist in both).
+
+Expected `.env` variables (used by the connector):
+- `RERANKER_API`: URL of the re-ranker microservice endpoint (POST)
+- `PRUNER_API`: URL of the pruner microservice endpoint (POST)
+- `EMBEDDING_API`: URL of the embedding microservice endpoint (POST)
+
+Expected microservice model variables:
+- The microservices infer a local model path from environment variables derived from the model names.
+  - Example (re-ranker): it builds an env var key from `RERANKER_MODEL` and looks it up with `os.environ.get(...)`.
+
+## Microservices (local)
+The microservices are implemented with FastAPI and started by `run_apis.sh`.
+
+`run_apis.sh` starts (in background):
+- `apis/embedding_api.py`
+- `apis/pruner_api.py`
+- `apis/re_ranker_api.py`
+
+Their endpoints are:
+- Re-ranker: `POST /rerank` (default port `8000`)
+- Pruner: `POST /prune` (default port `8001`)
+- Embedding: `POST /embed` (default port `8002`)
+
+Make sure your `.env` sets:
+- `RERANKER_API` to something like `http://localhost:8000/rerank`
+- `PRUNER_API` to something like `http://localhost:8001/prune`
+- `EMBEDDING_API` to something like `http://localhost:8002/embed`
+
+## Running the pipeline
+There are two main phases:
+1. Document ingestion (PDF -> chunks -> store)
+2. Extraction (RAG -> JSON output)
+
+### 1) Doc ingestion
+Run:
+```bash
+./run_doc_ingestion.sh
+```
+
+Notes:
+- The script starts Ollama (`ollama serve`) and then runs `scripts/ingest_docs.py`.
+- On Windows, use a shell that can run `.sh` scripts (e.g., Git Bash, WSL).
+
+### 2) Extraction
+Run:
+```bash
+./run_extraction.sh
+```
+
+Notes:
+- `run_extraction.sh` starts Ollama and then runs `scripts/extract_info.py`.
+- `extract_info.py` is responsible for orchestrating the RAG pipeline + structured JSON extraction.
+
+### Optional: start only microservices
+If you only want the embedding/pruner/reranker services:
+```bash
+./run_apis.sh
+```
+
+## Data formats
+This repo expects “combined” JSON files and produces prediction JSONs.
+
+### Input: `combined_data.json`
+The “combined raw” JSON is expected to contain these keys:
+- `values`
+- `raw_contexts`
+- `raw_contexts_ids`
+- `raw_qa`
+
+Raw JSONs are typically organized like:
+```json
 {
-    Azienda_name: {
-        "BILANCI_E_UTILI": {
-            "values": {
-                "CapitaleSociale": {
-                    "capitale_sociale_euro": ""
-                },
-                "DataChiusuraEsercizio": {
-                    "data_chiusura_esercizio": ""
-                },
-                "PercentualeRiservaLegale": {
-                    "percentuale_utili": ""
-                },
-                "TermineApprovazioneBilancio": {
-                    "termine_ordinario_giorni": "",
-                    "termine_prorogato_giorni": ""
-                },
-                "UtiliResidui": {
-                    "utili_residui": ""
-                }
-            },
-            "raw_contexts": {
-                "CapitaleSociale": "",
-                ...
-            },
-            "raw_contexts_ids": {
-                "CapitaleSociale": {
-                    "parents": [],
-                    "children": []
-                },
-                ...
-            },
-            "raw_qa": {
-                "CapitaleSociale": {
-                    "Q": "",
-                    "A": ""
-                },
-                ...
-            }
-        },
-        "COMPENSO_DEGLI_AMMINISTRATORI": {
-            ...
-        },
-        "INFO_GENERALI": {
-            ...
-        }
-    },
-    ...
+  "Azienda_name": {
+    "BILANCI_E_UTILI": { "values": { "...": "" }, "raw_contexts": { "...": "" }, "...": "..." },
+    "COMPENSO_DEGLI_AMMINISTRATORI": { "...": "..." }
+  }
 }
+```
 
-**pred.json:**
-{
-    "Azienda_name": {
-        "BILANCI_E_UTILI": {
-            "output": {
-                "CapitaleSociale": {
-                    "capitale_sociale_euro": ""
-                },
-                "DataChiusuraEsercizio": {
-                    "data_chiusura_esercizio": ""
-                },
-                "PercentualeRiservaLegale": {
-                    "percentuale_utili": ""
-                },
-                "TermineApprovazioneBilancio": {
-                    "termine_ordinario_giorni": "",
-                    "termine_prorogato_giorni": ""
-                },
-                "UtiliResidui": {
-                    "utili_residui": ""
-                }
-            },
-            "retrieved_docs": {
-                "CapitaleSociale": {
-                    "parents": [],
-                    "children": []
-                },
-                ...
-            },
-            "re_ranked_docs": {
-                "CapitaleSociale": {
-                    "parents": [],
-                    "children": []
-                },
-                ...
-            },
-            "retrieved_docs_texts": {
-                "CapitaleSociale": {
-                    "parents": [],
-                    "children": []
-                },
-                ...
-            },
-            "re_ranked_docs_texts": {
-                "CapitaleSociale": {
-                    "parents": [],
-                    "children": []
-                },
-                ...
-            },
-            "rag_qa": {
-                "CapitaleSociale": {
-                    "Q": "",
-                    "A": ""
-                },
-                ...
-            },
-            "run_times": {
-                "CapitaleSociale": {
-                    "analyze_query": "",
-                    "retrieve": "",
-                    "pruning": "",
-                    "generate": "",
-                    "re_ranking": "",
-                    "faster_retrieve_and_rerank": "",
-                    "overall": "",
-                    "extract_sub_module": ""
-                },
-                ...
-            },
-            "optimized_query": {
-                "CapitaleSociale": {
-                    "query": "",
-                    "azienda": ""
-                },
-                ...
-            }
-        },
-        "COMPENSO_DEGLI_AMMINISTRATORI": {
-            ...
-        },
-        "INFO_GENERALI": {
-            ...
-        }
-    },
-    ...
-}
+### Output: `pred.json`
+Predictions are typically saved under:
+`run/<TRAIN_OR_TEST>/run_time/pred.json`
 
+The structure mirrors the raw groups and includes (example categories):
+- `output`: the extracted structured JSON
+- `retrieved_docs` / `re_ranked_docs`: chunk ids/text used by the pipeline
+- `rag_qa`: generated Q/A for the QA-style part (if enabled)
+- `run_times`: timings per module
 
-# Cloud vs. Local Deployment Trade-offs
-During development, I observed that while local hosting ensures 100% data privacy and zero deprecation risk, CPU-only inference can lead to high latency. I integrated the Google GenAI API to offer a 'High Performance' mode, while documenting the inherent risk of model retirement (as seen with the transition from Gemma 3 to Gemma 4).
+## Evaluation
+Evaluation scripts live under `evaluations/`.
 
+Typical workflow:
+1. Ensure raw chunk ids exist (run):
+   - `python evaluations/utils/find_raw_chunks_ids.py`
+2. Run extraction (see `Running the pipeline`)
+3. Build match files:
+   - `python evaluations/utils/match_pred_output_llm.py`
+   - `python evaluations/utils/match_pred_rag_QA_llm.py`
+4. Compute summaries:
+   - `python evaluations/eval_generation.py`
+   - `python evaluations/eval_overall.py`
+   - `python evaluations/aggregate_eval_overall.py`
 
-# TODOs: 
-4. Implement the extract_and_save_all_info in scripts/extract_info.py in asynchronous manner
-5. Integrate the extraction process with streamlit frontend (a button which extracts the pre-defined fields for 1 statuto)
-6. Check if "keyBERT" model can be implemented for analyze_query node.
-7. Check OLLAMA implementation for Qwen3.5
-8. Implement tests for faithfulness, answer relevance, Conciseness.
-9. Read about GemmaEmbeddings and use it for embedding instead of e5 (check also prompt for embedders at https://ai.google.dev/gemma/docs/embeddinggemma/inference-embeddinggemma-with-sentence-transformers?hl=it&authuser=1)
-10. Apply isort and black to all scripts for uniform code formatting 
-11. Write all the tests in a separate folder for pytest testings
+## Notes / known TODOs (from existing docs)
+- Verify/iterate on:
+  - query optimization strategies in `analyze_query`
+  - extraction LLM choice and prompt robustness
+  - evaluation metrics for faithfulness / answer relevance / conciseness
+- There is an ongoing TODO to integrate the extraction process in an async and/or frontend-friendly way (see notes in `.readme.md`).
 
-
-# Possibile Improvements:
-1. In the anlyze_query node for the rag_pipeline, see if there are better alternatives than using LLM for optimizing the query such as spaCy or KeyBERT?? If not, at least use a differnt, smaller model for this step with zero-shot prompting. (TEST KeyBERT in analyze query thoroughly and if works better/good will need to modify the section 3.3.2 Node 1: Query Analysis and Pre-Retrieval Optimization in the thesis to reflect this)
-2. In the extractor llm, try to use a smaller llm (1b/2b) and compare if performance is sufficient/not too low. If works, edit the section 3.4.1 The Two-Step Extraction System (paragraph 3) in the thesis.
-3. For better query optimization, use the HyDE + re-ranker technique
-4. In rag_info_extractor, for ingestion with custom_chunking, we can use semantic_chunking as fallback instead of fixed-size since it showed better performance
-
-
-# Suggestion to switch from local to Gemini API:
-A. Use a "Dual-Mode" Architecture
-Instead of just switching to the API, implement a toggle. This proves you can optimize for different environments.
-
-**Example**
-def get_llm(mode="api"):
-    if mode == "local":
-        return LocalGemma(model_path="path/to/gemma-4-e4b.gguf") # High Latency / Privacy
-    else:
-        return GoogleGenAI(model_id="gemma-4-26b-a4b-it") # Low Latency / Cloud

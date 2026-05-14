@@ -690,7 +690,6 @@ def main(functions_to_run: List[str]):
     if "cross_encode_rerank" in functions_to_run:
         logger.info("Re-Ranking docs via Cross-Encode-Reranker...")
         output = cross_encode_rerank(
-            # re_ranker = re_ranker, 
             contexts = retrieval_output.get("context", []),
             question = QUESTION,
             doc_store_large_chunks_path = DOC_STORE_LARGE_CHUNKS_PATH,
@@ -706,7 +705,6 @@ def main(functions_to_run: List[str]):
         logger.info("Re-Ranking docs via (async) Cross-Encode-Reranker...")
         output = asyncio.run(
             across_encode_rerank(
-                # re_ranker = re_ranker, 
                 contexts = retrieval_output.get("context", []),
                 question = QUESTION,
                 doc_store_large_chunks_path = DOC_STORE_LARGE_CHUNKS_PATH,
@@ -838,7 +836,7 @@ if __name__ == "__main__":
 
 
     # Run and save outputs of each function
-    functions_to_run = ["faster_retrieve_and_rerank"] # in ["cross_encode_rerank", "faster_retrieve_and_rerank"]  # can be both
+    functions_to_run = ["across_encode_rerank"] # in ["cross_encode_rerank", "faster_retrieve_and_rerank"]  # can be both
     main(functions_to_run)
 
     logger.info(f"Total time taken to run the script: {time.strftime('%H:%M:%S', time.gmtime(time.time()-t0))}")

@@ -118,7 +118,7 @@ def encode(request: EmbedRequest):
 
 
 
-# --- Avvio del Server ---
+# --- Start Server ---
 if __name__ == "__main__":
     # Configure logging settings
     parser = argparse.ArgumentParser()
@@ -127,9 +127,7 @@ if __name__ == "__main__":
     configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
     logger.info(f"Launching EMBEDDING API (RAG_INFORMATION_EXTRACTOR/apis/embedding_api.py)")
 
-
+    PORT = int(os.getenv("PORT", 8002))
 
     # Start Uvicorn to serve FASTAPI app
-    # Host '0.0.0.0' rende l'API accessibile dall'esterno (se sei su un server)
-    # Porta 8000 è la porta standard
-    uvicorn.run(app, host="localhost", port=8002)
+    uvicorn.run(app, host="localhost", port=PORT)

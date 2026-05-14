@@ -161,5 +161,5 @@ Typical workflow:
   - query optimization strategies in `analyze_query`
   - extraction LLM choice and prompt robustness
   - evaluation metrics for faithfulness / answer relevance / conciseness
-- There is an ongoing TODO to integrate the extraction process in an async and/or frontend-friendly way (see notes in `.readme.md`).
+- There is an ongoing TODO to integrate the extraction process in an async and/or frontend-friendly way.
 

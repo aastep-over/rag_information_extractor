@@ -23,7 +23,7 @@ fi
 ollama serve > /dev/null 2>&1 &
 
 # esegui lo script Python e passa eventuali argomenti
-python ./scripts/ingest_docs.py "$@"
+python ./scripts/run_ingest_docs.py "$@"
 
 # prova a disattivare (se è stato attivato)
 if type deactivate >/dev/null 2>&1; then

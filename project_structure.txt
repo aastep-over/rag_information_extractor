@@ -49,3 +49,27 @@ rag-project/
 
 
 
+
+
+
+# suggested
+my_project/
+├── src/
+│   └── my_bot/                  <-- Your top-level package name
+│       ├── __init__.py
+│       ├── ingestion/           <-- (Your existing folder)
+│       │   ├── __init__.py
+│       │   └── core.py          <-- Move logic from ingest_docs.py here
+│       ├── rag/                 <-- (Your existing folder)
+│       │   ├── __init__.py
+│       │   ├── pipeline.py      <-- Move logic from rag_pipeline.py here
+│       │   └── components.py    
+│       └── extraction/          
+│           ├── __init__.py
+│           └── extractor.py     <-- Move logic from extract_info.py here
+├── scripts/                     <-- THIN WRAPPERS
+│   ├── run_ingest.py            <-- Imports from my_bot.ingestion
+│   └── run_extract.py           <-- Imports from my_bot.extraction
+└── tests/
+    ├── test_ingestion.py
+    └── test_rag.py

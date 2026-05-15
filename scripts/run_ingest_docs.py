@@ -66,7 +66,6 @@ def main():
     if children_chunks:
         embed_child_chunks(
             children_chunks,
-            HF_embedding_model_name = EMBEDDING_MODEL_PATH,
             vector_store_dir = VECTOR_STORE_PATH
         )
 

@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 
 # Import from modules
-from rag_info_extractor.rag_pipeline.utils import (CompanyMatcher,
+from rag_info_extractor.rag_pipeline_components.utils import (CompanyMatcher,
                                                    match_azienda_name)
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 from rag_info_extractor.info_schema.utils import return_default_json
@@ -308,47 +308,5 @@ async def aanalyze_query(
 
     return response
 
-if __name__ == "__main__":
-    import argparse
-    import time
 
-    from rag_info_extractor.utils.common_logging import configure_logging
-
-    t0 = time.time()
-
-    question = "Agli amministratori spetta il rimborso delle spese? Quali spese sono incluse? Cerca per la società: 2KIN D SRL"
-    llm = OllamaLLM(
-        llm_model="gemma3:4b"
-    )
-    azienda_name_records = ['2kind srl', 'cnc world s.r.l.', 'inverso srl', 'compagnie de participation hotelliere et touristique s.r.l.', 'harmin s.r.l.']
-
-    opt_query = analyze_query(
-        question = question,
-        llm = llm,
-        nome_azienda="",
-        azienda_name_records = azienda_name_records,
-        use_google_api=True
-    )
-
-    # Async version
-    # opt_query = asyncio.run(
-    #     aanalyze_query(
-    #         question = question,
-    #         llm = llm,
-    #         nome_azienda="",
-    #         azienda_name_records = azienda_name_records,
-    #         use_google_api=True
-    #     )
-    # )
-
-    # Configure logging settings
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging") # For DEBUG level logging, run in cli: python .\ingest_docs.py --verbose or -v
-    args = parser.parse_args()
-    configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
-
-    logger.info(f"Optimized Query: {opt_query}")
-
-    logger.info(f"Total time taken to run the script: {time.strftime("%H:%M:%S", time.gmtime(time.time()-t0))}")
-
-    # TODO: Adjust system prompts because the output json contains fields like description so pydantic can't validate
+# TODO: Adjust system prompts because the output json contains fields like description so pydantic can't validate

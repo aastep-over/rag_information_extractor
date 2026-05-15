@@ -1,242 +1,39 @@
+import yaml, os, time, asyncio
+from pathlib import Path
+from rag_info_extractor.utils.common_logging import configure_logging
+import argparse
+from rag_info_extractor.utils.load_config import cfgs
+from rag_info_extractor.utils.llm_connector import OllamaLLM
+from rag_info_extractor.rag_pipeline_components.generator import generate, agenerate
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import AIMessage
-
-# Python native
-from typing import List, Dict, Optional, Tuple
-import re
-import textwrap
-import os
 from dotenv import load_dotenv
 
-# from other modules
-from rag_info_extractor.utils.llm_connector import OllamaLLM
-
-# Logging
 import logging
 logger = logging.getLogger(__name__)
 
-# Google API related
-from google import genai
-from tenacity import retry, wait_random_exponential
-from google.genai import types
-
-
-# Define System prompt for generation
-SYSTEM_PROMPT = textwrap.dedent("""\
-        SYSTEM:
-        Sei un analista di statuti societari.
-
-        ISTRUZIONI:
-        - Ti verranno dati più CHUNK separati da "||".
-        - Leggi ogni CHUNK separatamente per trovare la risposta alla domanda.
-        - Usa solo le informazioni esplicite nei chunk.
-        - Se più chunk contengono parti utili, combina solo ciò che serve in una frase chiara e breve.
-        - Se nessuno contiene la risposta, scrivi esattamente: "Non ho trovato la risposta nei documenti forniti".
-        - Rispondi sempre in italiano, senza elenco puntato o testo extra.
-
-        HUMAN:
-        {additional_prompt}
-
-        CONTESTO:
-        {context}
-
-        DOMANDA:
-        {question}                          
-    """)
-
-# =======================================
-#  Answer with GOOGLE API
-# =======================================
-@retry(wait=wait_random_exponential(min=1, max=60))
-def answer_with_GOOGLE_API(
-    prompt_content: str
-):
-
-    # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    retry_options = types.HttpRetryOptions(
-        initial_delay=2.0,      
-        max_delay=60.0,         
-        exp_base=2.0,         
-        attempts=10,             
-        http_status_codes=[408, 429, 500, 502, 503, 504]
-    )
-
-    client = genai.Client(
-        http_options=types.HttpOptions(
-            retry_options=retry_options
-        )
-    )
-
-    # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
-    response = client.models.generate_content(
-        model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
-        contents=prompt_content,
-        config=types.GenerateContentConfig(
-            temperature=0.0
-        )
-    )
-
-    return response
-
-# Async version
-@retry(wait=wait_random_exponential(min=1, max=60))
-async def aanswer_with_GOOGLE_API(
-    prompt_content: str,
-):
-
-    # The client gets the API key from the environment variable `GEMINI_API_KEY`.
-    retry_options = types.HttpRetryOptions(
-        initial_delay=2.0,      
-        max_delay=60.0,         
-        exp_base=2.0,         
-        attempts=10,             
-        http_status_codes=[408, 429, 500, 502, 503, 504]
-    )
-
-    client = genai.Client(
-        http_options=types.HttpOptions(
-            retry_options=retry_options
-        )
-    )
-
-    # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
-    response = await client.aio.models.generate_content(
-        model=os.environ.get("GENERATOR__GEMINI_MODEL_ID", ""),
-        contents=prompt_content,
-        config=types.GenerateContentConfig(
-            temperature=0.0,
-        )
-    )
-
-    return response
-
-
-
-# ======= MAIN function ===============
-
-def generate(
-    question: str,
-    contexts: List[Document],
-    llm: OllamaLLM,
-    additional_prompt: str = "",
-    contexts_sep: str = "||",
-    use_google_api: bool = False,
-
-) -> str:
-    
-    """Generate answer to query/question using the context retrieved by the retriever"""
-
-    logger.info("\n --------------- NODE: __generate__ ------------------------\n")###
-    docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
-    
-    # Remove name of società to avoid confusion for llm
-    contain_name = re.findall(r"(.*) Nome della società: (.*)", question) 
-    if contain_name:
-        q = contain_name[0][0]
-        azienda_name = contain_name[0][1]
-    else:
-        q = question
-
-    # Update prompt with additional_instruction, context and question
-    prompt_content = SYSTEM_PROMPT.replace("{additional_prompt}", additional_prompt)
-    prompt_content = prompt_content.replace("{context}", docs_content)
-    prompt_content = prompt_content.replace("{question}", q)
-    
-    if use_google_api:
-        if contain_name:
-            prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
-        response_api = answer_with_GOOGLE_API(prompt_content)
-        ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
-    else:
-        ai_answer: AIMessage = llm.invoke(
-            output_format = "text",
-            memory = prompt_content,
-            num_predict = 500,
-            temperature = 0
-        ) # type: ignore
-
-    if isinstance(ai_answer.content, str):
-        answer = ai_answer.content.strip() 
-    else:
-        answer = "Non ho trovato la risposta"
-
-    return answer
-
-# Async version
-async def agenerate(
-    question: str,
-    contexts: List[Document],
-    llm: OllamaLLM,
-    additional_prompt: str = "",
-    contexts_sep: str = "||",
-    use_google_api: bool = False,
-    
-) -> str:
-
-    """Async implementation of generate"""
-
-    logger.info("\n --------------- NODE: (async) __generate__ ------------------------\n")###
-    docs_content = contexts_sep.join(doc.page_content for doc in contexts) # legacy joiner: "\n\n"
-    
-    # Remove name of società to avoid confusion for llm
-    contain_name = re.findall(r"(.*) Nome della società: (.*)", question) 
-    if contain_name:
-        q = contain_name[0][0]
-        azienda_name = contain_name[0][1]
-    else:
-        q = question
-    
-    # Update prompt with additional_instruction, context and question
-    prompt_content = SYSTEM_PROMPT.replace("{additional_prompt}", additional_prompt)
-    prompt_content = prompt_content.replace("{context}", docs_content)
-    prompt_content = prompt_content.replace("{question}", q)
-
-    if use_google_api:
-        if contain_name:
-            prompt_content = prompt_content.replace(azienda_name, "<nome_azienda>") # response.text.strip()
-        response_api = await aanswer_with_GOOGLE_API(prompt_content)
-        ai_answer: AIMessage = AIMessage(content=response_api.text) # type: ignore
-    else:
-        ai_answer: AIMessage = await llm.ainvoke(
-            output_format = "text",
-            memory = prompt_content,
-            num_predict = 500,
-            temperature = 0
-        ) # type: ignore
-
-    if isinstance(ai_answer.content, str):
-        answer = ai_answer.content.strip() 
-    else:
-        answer = "Non ho trovato la risposta"
-
-    return answer
-
-
-if __name__ == "__main__":
-    import yaml, os, time, asyncio
-    from pathlib import Path
-    from rag_info_extractor.utils.common_logging import configure_logging
-    import argparse
-    from rag_info_extractor.utils.load_config import cfgs
-
-
-    t0 = time.time()
-    
-    # Configure logging settings
+def main():
+    # 1. Configure logging settings
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging") # For DEBUG level logging, run in cli: python .\ingest_docs.py --verbose or -v
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable DEBUG logging",
+    )
     args = parser.parse_args()
-    configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
+    configure_logging(
+        default_level=logging.DEBUG if args.verbose else logging.INFO
+    )
     logger.info(f"Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline/retrieve.py")
-
-    cfgs = cfgs.get("args", {})
-
+    
+    # 2. CONFIG FILE SETTINGS:
     LLM_MODEL = cfgs.get("LLM_MODEL") 
     BASE_DIR = cfgs.get("BASE_DIR")
+
+    # 3. Load env_vars
     load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-    # Query and Aziende (EXAMPLE)
+    # 4. Setup Query and Aziende (EXAMPLE)
     QUESTION = "Agli amministratori spetta il rimborso delle spese?"
     CONTEXTS = [
         Document(id='0d290c5c-68c0-4330-8bf3-36640fe144bd', metadata={'creationDate': "D:20230711100553+02'00'", 'modDate': "D:20230711100553+02'00'", 'total_pages': 7, 'end': 14981, 'producer': 'OAPDFPrinter        ', 'keywords': '', 'child_id': 17, 'azienda': '2kind srl', 'creator': '', 'format': 'PDF 1.5', 'pattern_name': 'art_keyword', 'title': 'Agli Amministratori spetta, oltre al rimborso delle spese', 'subject': '', 'filename': '8048909650002.pdf', 'start': 14830, 'parent_id': 19, 'header': 'Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese', 'trapped': '', 'source': '8048909650002.pdf', 'author': '', 'chunk_id': 17}, page_content='Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese\nsostenute in ragione del loro ufficio, un compenso eventuale determinato dai\nsoci.'),
@@ -249,33 +46,50 @@ if __name__ == "__main__":
         Document(id='3a6bf210-21a7-4cb4-b6c5-05737ddd00fc', metadata={'format': 'PDF 1.5', 'author': '', 'creationDate': "D:20230711100553+02'00'", 'header': 'Art.16. - Il consiglio di amministrazione può delegare le proprie', 'source': '8048909650002.pdf', 'producer': 'OAPDFPrinter        ', 'subject': '', 'title': '- Il consiglio di amministrazione può delegare le proprie', 'trapped': '', 'azienda': '2kind srl', 'modDate': "D:20230711100553+02'00'", 'creator': '', 'keywords': '', 'parent_id': 16, 'total_pages': 7, 'child_id': 14, 'pattern_name': 'art_keyword', 'end': 14315, 'chunk_id': 14, 'start': 14084, 'filename': '8048909650002.pdf'}, page_content="Art.16. - Il consiglio di amministrazione può delegare le proprie\nattribuzioni ad un o più dei suoi membri determinandone all'atto della\nnomina i poteri con le limitazioni di cui all'articolo 2381 c.c.\nPOTERI DEGLI AMMINISTRATORI")
     ]
 
-    # Define LLM
-    llm = OllamaLLM(
-        llm_model = LLM_MODEL,
-        temperature = 0 
-    )
+    # 5. Run Generate
+    llm = OllamaLLM(llm_model=LLM_MODEL, temperature=0)
+    if USE_GOOGLE_API:
+        logger.info("Using Google API")
+        if RUN_ASYNC:
+            logger.info("Async...")
+            answer = asyncio.run(
+                agenerate(
+                    question = QUESTION,
+                    contexts = CONTEXTS,
+                    llm = llm,
+                    use_google_api=True
+                )
+            )
+        else:
+            logger.info("Sync...")
+            answer = generate(
+                question = QUESTION,
+                contexts = CONTEXTS,
+                llm = llm,
+                use_google_api = True
+            )
+    else:
+        logger.info("Using Local Ollama")
+        if RUN_ASYNC:
+            logger.info("Async...")
+            answer = asyncio.run(
+                agenerate(
+                    question = QUESTION,
+                    contexts = CONTEXTS,
+                    llm = llm,
+                    use_google_api=False
+                )
+            )
+        else:
+            logger.info("Sync...")
+            answer = generate(
+                question = QUESTION,
+                contexts = CONTEXTS,
+                llm = llm,
+                use_google_api = False
+            )
 
-    # Run Generator
-    logger.info("Generating answer...")
-    
-    answer = generate(
-        question = QUESTION,
-        contexts = CONTEXTS,
-        llm = llm,
-        use_google_api = True
-    )
-
-    # Async version
-    # answer = asyncio.run(
-    #     agenerate(
-    #         question = QUESTION,
-    #         contexts = CONTEXTS,
-    #         llm = llm,
-    #         use_google_api = False
-    #     )
-    # )
-
-
+    # 6. Save the output in output_temp.txt
     with open("output_temp", "w", encoding="utf-8") as f:
         f.write("## OUTPUT FOR: generator.py\n\n")
         f.write(f"Date: {time.strftime('%Y-%m-%d  %H:%M:%S')}\n")
@@ -289,11 +103,20 @@ if __name__ == "__main__":
             f.write(f"\n{"-"*50} CHUNK {i} {"-"*50}\n")
             f.write(f"CHUNK ID: {c.metadata.get("chunk_id")}\n")
             f.write(f"{c.page_content}\n\n")
-    
-    logger.info(f"Total time taken to run the script: {time.strftime("%H:%M:%S", time.gmtime(time.time()-t0))}")
 
 
+if __name__ == "__main__":
+    t0 = time.time()
+    cfgs = cfgs.get("args", {})
+    RUN_ASYNC = True
+    USE_GOOGLE_API = True
 
+    main()
+
+    logger.info(
+        "Total time taken to run the script: %s",
+        time.strftime("%H:%M:%S", time.gmtime(time.time() - t0)),
+    )
 
 
 

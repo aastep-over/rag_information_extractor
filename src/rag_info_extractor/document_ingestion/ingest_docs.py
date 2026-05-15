@@ -69,7 +69,6 @@ def save_parent_chunk_bytes(
 
 def embed_child_chunks(
     children_chunks: List[Document],
-    HF_embedding_model_name: str,
     vector_store_dir: str
 ):
     # Create folder

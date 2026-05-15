@@ -12,8 +12,8 @@ from rag_info_extractor.utils.common_logging import configure_logging
 from rag_info_extractor.utils.load_config import cfgs
 from rag_info_extractor.utils.embedder import HFEmbedder
 from rag_info_extractor.utils.llm_connector import OllamaLLM
-from rag_pipeline import RAGPipeline
-from extract_info import extract_and_save_all_info, aextract_and_save_all_info
+from rag_info_extractor.rag_pipeline import RAGPipeline
+from rag_info_extractor.extract_info import extract_and_save_all_info, aextract_and_save_all_info
 from rag_info_extractor.info_schema.utils import load_classes_from_path
 
 

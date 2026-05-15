@@ -2,8 +2,9 @@ import json
 
 import pytest
 from langchain_core.documents import Document
+from langchain_core.vectorstores.base import VectorStoreRetriever
 
-import rag_info_extractor.rag_pipeline.re_ranker as re_ranker
+import rag_info_extractor.rag_pipeline_components.re_ranker as re_ranker
 
 
 def _doc(chunk_id, parent_id, text):
@@ -169,7 +170,7 @@ def test_reranker_base_ce_score_calls_service(monkeypatch):
     assert captured["documents"] == ["doc a", "doc b"]
 
 
-class _FakeCompressionRetriever:
+class _FakeCompressionRetriever(VectorStoreRetriever):
     def __init__(self, docs):
         self.docs = docs
         self.invoke_kwargs = None
@@ -293,7 +294,7 @@ retriever = vector_store.as_retriever(search_type="similarity",
 
 # Test functions
 def test_cross_encode_rerank():
-    
+    pass
 
 def test_faster_retrieve_and_rerank():
     QUERY = "Agli amministratori spetta il rimborso delle spese?"

@@ -24,7 +24,7 @@ ollama serve > /dev/null 2>&1 &
 
 # esegui lo script Python e passa eventuali argomenti
 cd scripts
-python extract_info.py "$@"
+python run_extract_info.py "$@"
 
 # prova a disattivare (se è stato attivato)
 if type deactivate >/dev/null 2>&1; then

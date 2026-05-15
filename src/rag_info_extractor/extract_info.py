@@ -26,7 +26,7 @@ from rag_info_extractor.info_schema.utils import (
     return_default_json,
     return_keys_description_schema,
 )
-from rag_pipeline import RAGPipeline
+from rag_info_extractor.rag_pipeline import RAGPipeline
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 # GEMINI API libraries

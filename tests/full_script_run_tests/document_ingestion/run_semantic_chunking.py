@@ -41,7 +41,7 @@ def main():
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[3]
     PDF_LOADER = cfgs.get("PDF_LOADER", "./")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     

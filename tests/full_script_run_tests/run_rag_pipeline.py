@@ -47,7 +47,7 @@ def main():
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[2]
 
     
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, CHUNKS_TYPE) 

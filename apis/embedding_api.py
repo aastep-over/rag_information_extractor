@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 import argparse
 import torch
+from pathlib import Path
 
 # Logging
 import logging
@@ -18,8 +19,8 @@ from rag_info_extractor.utils.load_config import cfgs
 
 # --- Global Config ---
 cfgs = cfgs.get("args", {})
-BASE_DIR = cfgs.get("BASE_DIR")
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
 
 # Path to EMBEDDING Model Directory/ name of the model
 EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")

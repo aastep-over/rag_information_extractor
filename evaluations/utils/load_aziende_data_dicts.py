@@ -235,7 +235,7 @@ if __name__ == "__main__":
     from rag_info_extractor.utils.load_config import cfgs
 
     cfgs = cfgs.get("args", {})
-    BASE_DIR = Path(cfgs.get("BASE_DIR", ""))
+    BASE_DIR = Path(__file__).resolve().parents[2]
 
     combined_raw_json = BASE_DIR / "data/jsons/TRAIN/combined_data.json"
     pred_json = BASE_DIR / "runs/TRAIN/custom_chunks/run_2026-03-09 09-11-36/pred.json"

@@ -3,6 +3,7 @@ import yaml
 import time
 import argparse
 from dotenv import load_dotenv
+from pathlib import Path
 
 # logging relative
 import logging
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 def main():
 
     # 1. Load config Vars
+    BASE_DIR = Path(__file__).resolve().parents[1]
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM")
@@ -28,7 +30,6 @@ def main():
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE)
     DOC_STORE_LARGE_CHUNKS_PATH = os.path.join(
         BASE_DIR, "data", "large_chunks_dbs", DATASET_TYPE, f"{CHUNKS_TYPE}"

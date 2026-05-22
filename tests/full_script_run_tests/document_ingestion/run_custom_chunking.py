@@ -40,7 +40,7 @@ def main():
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
     READ_MODE = cfgs.get("READ_MODE", "single")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[3]
     PDF_LOADER = cfgs.get("PDF_LOADER", "./")
 
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE)

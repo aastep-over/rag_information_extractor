@@ -19,8 +19,7 @@ args:
   PRUNER_MODEL: "naver/xprovence-reranker-bgem3-v1"                 # Loaded from .env for path
 
 
-
-  BASE_DIR: "D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor" # Full Path (local) to rag_information_extractor/
+  
   DATASET_TYPE: "temp_tests"                 ## one of: "TRAIN", "TEST", "TRAIN_temp"
 
   

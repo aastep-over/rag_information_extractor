@@ -6,6 +6,7 @@ import time, datetime
 import argparse
 import asyncio
 from dotenv import load_dotenv
+from pathlib import Path
 
 import logging
 from rag_info_extractor.utils.common_logging import configure_logging
@@ -50,7 +51,7 @@ def main():
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[1]
     RUN_ASYNC = cfgs.get("RUN_ASYNC", False)
     USE_GOOGLE_API = cfgs.get("USE_GOOGLE_API")
 

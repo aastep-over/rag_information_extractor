@@ -359,7 +359,7 @@ if __name__ == "__main__":
 
     # Load configs
     cfgs = cfgs.get("args", {})
-    BASE_DIR = Path(cfgs.get("BASE_DIR", "./"))
+    BASE_DIR = Path(__file__).resolve().parents[1]
     run_names = [f for f in os.listdir(Path(BASE_DIR, args.runs_dir)) if os.path.isdir(Path(BASE_DIR, args.runs_dir, f))]
     print(args.runs_dir)
 

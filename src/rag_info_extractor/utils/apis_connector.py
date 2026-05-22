@@ -6,6 +6,7 @@ from typing import List, Tuple, Any
 from dotenv import load_dotenv
 import yaml
 import os
+from pathlib import Path
 
 from rag_info_extractor.utils.load_config import cfgs
 
@@ -13,8 +14,8 @@ from rag_info_extractor.utils.load_config import cfgs
 
 # Load configs and environment vars
 cfgs = cfgs.get("args", {})
-BASE_DIR = cfgs.get("BASE_DIR")
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+BASE_DIR = Path(__file__).resolve().parents[3]
+load_dotenv(BASE_DIR / ".env")
 
 # Load Re-Ranker API
 RERANKER_API = os.getenv("RERANKER_API", "")

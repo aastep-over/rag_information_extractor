@@ -343,7 +343,7 @@ if __name__ == "__main__":
 
     # CONFIG FILE SETTINGS:
     cfgs = cfgs.get("args", {})
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[2]
 
     # Obtain raw_data dict
     combined_raw_json_path = Path(BASE_DIR, f"data/jsons/{args.dataset}/{args.chunk_type}/combined_data.json") 

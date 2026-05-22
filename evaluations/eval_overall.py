@@ -350,7 +350,7 @@ if __name__ == "__main__":
 
     # Load configs
     cfgs = cfgs.get("args", {})
-    BASE_DIR = Path(cfgs.get("BASE_DIR", "./"))
+    BASE_DIR = Path(__file__).resolve().parents[1]
 
     # Obtain paths for raw_json, combined_pred_json and match_scores_json
     combined_raw_json = Path(BASE_DIR, args.combined_raw_json)

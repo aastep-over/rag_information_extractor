@@ -477,7 +477,7 @@ if __name__ == "__main__":
 
     # Read configs
     cfgs = cfgs.get("args", {})
-    BASE_DIR = cfgs.get("BASE_DIR", "")
+    BASE_DIR = Path(__file__).resolve().parents[2]
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "")
     
     # Obtain paths for raw_json, pred_json and match_scores_json

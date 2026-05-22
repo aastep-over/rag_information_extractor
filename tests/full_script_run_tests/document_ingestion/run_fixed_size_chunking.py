@@ -38,7 +38,7 @@ def main():
     # 2. CONFIG FILE SETTINGS:
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[3]
     PDF_LOADER = cfgs.get("PDF_LOADER", "./")
 
     DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) 

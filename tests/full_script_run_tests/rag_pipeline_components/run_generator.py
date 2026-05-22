@@ -28,7 +28,7 @@ def main():
     
     # 2. CONFIG FILE SETTINGS:
     LLM_MODEL = cfgs.get("LLM_MODEL") 
-    BASE_DIR = cfgs.get("BASE_DIR")
+    BASE_DIR = Path(__file__).resolve().parents[3]
 
     # 3. Load env_vars
     load_dotenv(os.path.join(BASE_DIR, ".env"))

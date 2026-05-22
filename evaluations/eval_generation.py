@@ -430,7 +430,7 @@ if __name__ == "__main__":
 
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
-    BASE_DIR = cfgs.get("BASE_DIR", "./")
+    BASE_DIR = Path(__file__).resolve().parents[1]
     EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "mistral:7b-instruct")
     
     

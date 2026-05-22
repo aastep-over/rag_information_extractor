@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import yaml
 import argparse
 import torch
+from pathlib import Path
 
 # Logging
 import logging
@@ -19,8 +20,8 @@ from rag_info_extractor.utils.load_config import cfgs
 
 # --- Global Config ---
 cfgs = cfgs.get("args", {})
-env_vars_file_path = cfgs.get("BASE_DIR")
-load_dotenv(os.path.join(env_vars_file_path, ".env.txt"))
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env.txt")
 
 # Path to ReRanker Model Directory/ name of the model
 RERANKER_MODEL_NAME = cfgs.get("RERANKER_MODEL", "") 

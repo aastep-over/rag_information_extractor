@@ -1,65 +1,48 @@
+import copy
+import json
+import logging
+import re
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional, Tuple
+
+# GEMINI API 
+from google import genai
+from google.api_core import exceptions  # 429 RESOURCE_EXHAUSTED.
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel, Field
-
-# python native
-from typing import Dict, Any, List, Tuple, Optional, Literal
-import json
-import copy
-import re
-import time
-from pathlib import Path
-
-# GEMINI API prova
-from google import genai
-from google.api_core import exceptions #429 RESOURCE_EXHAUSTED.
 from tenacity import retry, wait_random_exponential
 
-# Logging
-import logging
 logger = logging.getLogger(__name__)
 
 # ---- MATCH TEMPLATE ----
 MATCH_TEMPLATE = {
-    'COMPENSO_DEGLI_AMMINISTRATORI': {
-        'Rimborso': {
-            'spetta_rimborso': 0,
-            'spese_incluse': 0,
+    "COMPENSO_DEGLI_AMMINISTRATORI": {
+        "Rimborso": {
+            "spetta_rimborso": 0,
+            "spese_incluse": 0,
         },
-        'IndennitaAnnuale': {
-            'spetta_indennita_da_soci': 0,
-            'misura_indennita': 0
-        },
-        'IndennitaCessazione': {
-            'spetta_indennita': 0
-        },
+        "IndennitaAnnuale": {"spetta_indennita_da_soci": 0, "misura_indennita": 0},
+        "IndennitaCessazione": {"spetta_indennita": 0},
     },
-    'BILANCI_E_UTILI': {
-        'PercentualeRiservaLegale': {
-            'percentuale_utili': 0
+    "BILANCI_E_UTILI": {
+        "PercentualeRiservaLegale": {"percentuale_utili": 0},
+        "CapitaleSociale": {"capitale_sociale_euro": 0},
+        "TermineApprovazioneBilancio": {
+            "termine_ordinario_giorni": 0,
+            "termine_prorogato_giorni": 0,
         },
-        'CapitaleSociale': {
-            'capitale_sociale_euro': 0
-        },
-        'TermineApprovazioneBilancio': {
-            'termine_ordinario_giorni': 0,
-            'termine_prorogato_giorni': 0
-        },
-        'DataChiusuraEsercizio': {
-            'data_chiusura_esercizio': 0
-        },
-        'UtiliResidui': {
-            'utili_residui': 0
-        },
+        "DataChiusuraEsercizio": {"data_chiusura_esercizio": 0},
+        "UtiliResidui": {"utili_residui": 0},
         # 'Context': 0,
     },
-    'INFO_GENERALI': {
-        "Durata": {
-            "durata_dell_azienda": 0
-        },
+    "INFO_GENERALI": {
+        "Durata": {"durata_dell_azienda": 0},
     },
 }
+
 
 # ======================================
 # 2) Utilities for walking nested dicts
@@ -80,10 +63,12 @@ def leaf_paths(template: Dict[str, Any]) -> List[Tuple[str, ...]]:
     _walk(template, tuple())
     return out
 
+
 def set_by_path(d: Dict[str, Any], path: Tuple[str, ...], val: Any) -> None:
     for p in path[:-1]:
         d = d[p]
     d[path[-1]] = val
+
 
 def get_by_path(d: Dict[str, Any], path: Tuple[str, ...]) -> Any:
     cur = d
@@ -95,7 +80,10 @@ def get_by_path(d: Dict[str, Any], path: Tuple[str, ...]) -> Any:
             return None
     return cur
 
-def compute_context_sums(match_dict: Dict[str, Any], present_fields: Optional[Dict[str, List[str]]] = None) -> None:
+
+def compute_context_sums(
+    match_dict: Dict[str, Any], present_fields: Optional[Dict[str, List[str]]] = None
+) -> None:
     """
     Optional: set section 'Context' as the sum of field presences you provide.
     Example present_fields:
@@ -110,11 +98,14 @@ def compute_context_sums(match_dict: Dict[str, Any], present_fields: Optional[Di
     for section, fields in present_fields.items():
         match_dict[section]["Context"] = len(fields)
 
-def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_type: Literal["raw", "pred"]):
+
+def convert_combined_json_to_match_template(
+    combined_json: Dict[str, Any], data_type: Literal["raw", "pred"]
+):
     """
     Converts the following dicts to --> MATCH TEMPLATE: (removes the keys: values and output)
-    
-    combined_raw_json: 
+
+    combined_raw_json:
         {
             'COMPENSO_DEGLI_AMMINISTRATORI': {
                 "values": {
@@ -127,8 +118,8 @@ def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_
             'BILANCI_E_UTILI': {},
             ...
         }
-    
-    combined_pred_json: 
+
+    combined_pred_json:
         {
             'COMPENSO_DEGLI_AMMINISTRATORI': {
                 "output": {
@@ -149,7 +140,7 @@ def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_
             group_data = group.get("values", {})
         elif data_type == "pred":
             group_data = group.get("output", {})
-        
+
         match_template[group_name] = group_data
 
     return match_template
@@ -160,6 +151,7 @@ def convert_combined_json_to_match_template(combined_json: Dict[str, Any], data_
 # ==========================================
 _BOOL_TRUE = {"true", "yes", "sì", "si", "y", "vero"}
 _BOOL_FALSE = {"false", "no", "n", "falso"}
+
 
 def normalize_scalar(x: Any) -> Any:
     if x is None:
@@ -192,6 +184,7 @@ def normalize_scalar(x: Any) -> Any:
 
     return s.lower()  # case-insensitive compare for text
 
+
 def fast_equal(a: Any, b: Any) -> bool:
     return normalize_scalar(a) == normalize_scalar(b)
 
@@ -200,7 +193,11 @@ def fast_equal(a: Any, b: Any) -> bool:
 # 4) Pydantic structured output (per key)
 # =======================================
 class FieldDecision(BaseModel):
-    match: bool = Field(..., description="True se PREDICTED uguale REFERENCE semanticamente; altrimeni False.")
+    match: bool = Field(
+        ...,
+        description="True se PREDICTED uguale REFERENCE semanticamente; altrimeni False.",
+    )
+
 
 EVAL_SYSTEM = (
     "Sei un valutatore severo ma equo per un singolo campo.\n"
@@ -219,15 +216,18 @@ EVAL_USER = (
     "Return your decision."
 )
 
+
 def build_field_chain(llm) -> Any:
     """
     Build a LangChain chain: Prompt -> LLM -> Pydantic parser.
     """
     parser = PydanticOutputParser(pydantic_object=FieldDecision)
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", EVAL_SYSTEM),
-        ("user", EVAL_USER),
-    ]).partial(format_instructions=parser.get_format_instructions())
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", EVAL_SYSTEM),
+            ("user", EVAL_USER),
+        ]
+    ).partial(format_instructions=parser.get_format_instructions())
     return prompt | llm | parser
 
 
@@ -241,7 +241,6 @@ def evaluate_with_GEMINI(
     predicted: str,
     system_prompt: str,
     user_prompt: str,
-
 ):
 
     user_prompt = user_prompt.replace("{field_path}", " / ".join(path))
@@ -254,19 +253,18 @@ def evaluate_with_GEMINI(
     client = genai.Client()
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
-    response = client.models.generate_content(
-            model="gemma-3-27b-it", contents=content
-        )
+    response = client.models.generate_content(model="gemma-3-27b-it", contents=content)
 
-    match_true = re.match(r"true.*", response.text.strip(), re.IGNORECASE) # type: ignore
-    match_false = re.match(r"false.*", response.text.strip(), re.IGNORECASE) # type: ignore
+    match_true = re.match(r"true.*", response.text.strip(), re.IGNORECASE)  # type: ignore
+    match_false = re.match(r"false.*", response.text.strip(), re.IGNORECASE)  # type: ignore
 
     if match_true:
         return True
     if match_false:
         return False
-    
+
     return "N/A"
+
 
 # =======================================================
 # 5) Main function: field-by-field with one LLM call each
@@ -275,9 +273,9 @@ def evaluate_pred_fieldwise(
     reference_obj: Dict[str, Any],
     predicted_obj: Dict[str, Any],
     log_file: Path,
+    local_evaluator_llm: str,
     present_fields: Optional[Dict[str, List[str]]] = None,
     use_gemini: bool = False,
-
 ) -> Dict[str, Any]:
     """
     Returns a filled match_data dict with 1/0 per leaf.
@@ -289,19 +287,18 @@ def evaluate_pred_fieldwise(
     reference_obj = convert_combined_json_to_match_template(reference_obj, "raw")
     predicted_obj = convert_combined_json_to_match_template(predicted_obj, "pred")
 
-    
     llm = ChatOllama(
-        model=EVALUATOR_LLM,
+        model=local_evaluator_llm,
         temperature=0,
-        num_predict=64,   # short outputs
+        num_predict=64,  # short outputs
         format="json",
-        cache=False    
+        cache=False,
     )
-    
+
     chain = build_field_chain(llm)
 
     with open(log_file, "a", encoding="utf-8") as f:
-        
+
         for path in leaf_paths(match_dict):
             ref_v = get_by_path(reference_obj, path)
             pred_v = get_by_path(predicted_obj, path)
@@ -310,37 +307,37 @@ def evaluate_pred_fieldwise(
             f.write(f"ref_v: {ref_v}\n")
             f.write(f"pred_v: {pred_v}\n")
 
-            print(f"Node: {path}")###
-            print(f"ref_v: {ref_v}")###
-            print(f"pred_v: {pred_v}")###
+            print(f"Node: {path}")  ###
+            print(f"ref_v: {ref_v}")  ###
+            print(f"pred_v: {pred_v}")  ###
 
             # Fast path: exact/normalized equality -> no LLM call
             if fast_equal(ref_v, pred_v):
                 f.write("Fast Path...\n")
-                print("Fast Path...")###
+                print("Fast Path...")  ###
                 set_by_path(match_dict, path, 1)
                 continue
-            
+
             # Fast path 2: if ref_v is empty and pred_v says something relevant to missing/not found
             not_found_pattern = r"\b(?:non\s+(?:specificat[oa]|indicat[oa]|definit[oa]|dichiarat[oa]|riportat[oa]|disponibil[ea]|menzionat[oa]|fornit[oa]|trovat[oa]|individuat[oa]|reperit[oa]|riscontrat[oa]|rinvenut[oa])|nessun[oa]?\s+(?:risultat[oa]|rispost[ae]?|riscontr[oi]|element[oi]|dat[oi])|assenza\s+di\s+(?:risultat[oi]|rispost[ae]?|riscontr[oi]|informazion[ei])|informazion[ei]\s+(?:mancant[ei]|indisponibil[ei]|assent[ei])|dat[oi]\s+mancant[ei]|ricerca\s+(?:infruttuos[ao]|senza\s+esito|priva\s+di\s+esiti)|risposta\s+non\s+pervenuta)\b"
             if not ref_v and re.search(not_found_pattern, pred_v, re.IGNORECASE):
                 f.write("Fast Path 2...\n")
-                print("Fast Path 2...")###
+                print("Fast Path 2...")  ###
                 set_by_path(match_dict, path, 1)
                 continue
-            
+
             # If pred_v empty or ref_v empty while other is not then set it to 0 -> no LLM call (since otherwise prev. if-statement will be executed)
             if not ref_v:
                 f.write("NOT MATCHED...\n")
                 print("NOT MATCHED...")
                 set_by_path(match_dict, path, 0)
-                continue        
+                continue
             if not pred_v:
                 f.write("NOT MATCHED...\n")
                 print("NOT MATCHED...")
                 set_by_path(match_dict, path, 0)
                 continue
-        
+
             if use_gemini:
                 try:
                     decision_gemini = evaluate_with_GEMINI(
@@ -350,7 +347,7 @@ def evaluate_pred_fieldwise(
                         system_prompt=EVAL_SYSTEM,
                         user_prompt=EVAL_USER,
                     )
-                    decision: FieldDecision = FieldDecision(match=decision_gemini) if decision_gemini != "N/A" else FieldDecision(match=False) # type: ignore
+                    decision: FieldDecision = FieldDecision(match=decision_gemini) if decision_gemini != "N/A" else FieldDecision(match=False)  # type: ignore
                 except Exception as e:
                     # If parsing fails, be conservative
                     f.write(f"WARNING!: Exception: {e}")
@@ -360,42 +357,51 @@ def evaluate_pred_fieldwise(
                     raise Exception(e)
                     # set_by_path(match_dict, path, 0)
                 else:
-                    f.write(f"Decision: {decision_gemini}") 
-                    print(decision_gemini)###
+                    f.write(f"Decision: {decision_gemini}")
+                    print(decision_gemini)  ###
                     set_by_path(match_dict, path, 1 if decision.match else 0)
             else:
                 # LLM decision (single field)
                 payload = {
                     "field_path": " / ".join(path),
-                    "reference": json.dumps(ref_v, ensure_ascii=False) if isinstance(ref_v, (dict, list)) else ref_v,
-                    "predicted": json.dumps(pred_v, ensure_ascii=False) if isinstance(pred_v, (dict, list)) else pred_v,
+                    "reference": (
+                        json.dumps(ref_v, ensure_ascii=False)
+                        if isinstance(ref_v, (dict, list))
+                        else ref_v
+                    ),
+                    "predicted": (
+                        json.dumps(pred_v, ensure_ascii=False)
+                        if isinstance(pred_v, (dict, list))
+                        else pred_v
+                    ),
                 }
 
                 try:
                     decision: FieldDecision = chain.invoke(payload)
                     f.write(f"Decision: {decision}")
-                    print(decision)###
+                    print(decision)  ###
                     set_by_path(match_dict, path, 1 if decision.match else 0)
                 except Exception as e:
                     # If parsing fails, be conservative
                     f.write(f"WARNING!: Exception: {e}")
                     print(f"WARNING!: Exception: {e}")
                     set_by_path(match_dict, path, 0)
-            
+
             f.write("\n")
 
         # write space
         f.write("\n\n")
 
-
     # Optional Context counters
     compute_context_sums(match_dict, present_fields)
     return match_dict
+
 
 def eval_for_all_aziende(
     raw_data: Dict[str, Any],
     pred_data: Dict[str, Any],
     output_dir: Path,
+    local_evaluator_llm: str,
     present_fields: Optional[Dict[str, List[str]]] = None,
     use_gemini: bool = False,
 ) -> None:
@@ -411,20 +417,22 @@ def eval_for_all_aziende(
     """
     LOG_FILE = output_dir / "decision_logs.txt"
     MATCH_SCORE_FILE = output_dir / "match_scores.json"
-    
-    with open(LOG_FILE, "w", encoding="utf-8") as f: # use the write mode to delete previous log for this test
+
+    with open(
+        LOG_FILE, "w", encoding="utf-8"
+    ) as f:  # use the write mode to delete previous log for this test
         if use_gemini:
             f.write(f"EVALUATOR_LLM: GEMINI\n")
             print("Evaluatin using GEMINI...")
         else:
-            f.write(f"EVALUATOR_LLM: {EVALUATOR_LLM}\n")
+            f.write(f"EVALUATOR_LLM: {local_evaluator_llm}\n")
         f.write(f"Date: {time.strftime('%Y-%m-%d  %H:%M:%S')}\n")
 
     match_data_azienda = {}
     for azienda in raw_data.keys():
         print(f"Azienda: {azienda}")
         with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write("="*80 + "\n")
+            f.write("=" * 80 + "\n")
             f.write(f"Azienda: {azienda}\n")
 
         raw_vals = raw_data[azienda]
@@ -433,92 +441,12 @@ def eval_for_all_aziende(
             reference_obj=raw_vals,
             predicted_obj=pred_v,
             log_file=LOG_FILE,
+            local_evaluator_llm=local_evaluator_llm,
             present_fields=present_fields,
-            use_gemini=use_gemini
+            use_gemini=use_gemini,
         )
-        
+
         match_data_azienda[azienda] = match_data
 
     with open(MATCH_SCORE_FILE, "w", encoding="utf-8") as f:
         json.dump(match_data_azienda, f, indent=4, ensure_ascii=False)
-
-        
-
-
-
-if __name__ == "__main__":
-    # CONFIG FILE SETTINGS  (Load args form config file)
-    from rag_info_extractor.utils.load_config import cfgs
-    from pathlib import Path
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Load paths to combined_raw_json and pred_json(output/extracted data json file)"
-    )
-    parser.add_argument(
-        "--combined-raw-json", # --combined-raw-json "data/jsons/TRAIN/custom_chunks_2/combined_data.json"
-        type=str,
-        help="Path(relative) to combined_raw_json file",
-        required=True
-    )
-    parser.add_argument(
-        "--pred-json",
-        type=str,
-        help="Path(relative) to pred_json file which is to be evaluated",
-        required=True
-    )
-    parser.add_argument(
-        "--use-gemini", # --use-gemini True
-        type=bool,
-        help="Path(relative) to pred_json file which is to be evaluated",
-        default=False
-    )
-    args = parser.parse_args()
-
-    # Read configs
-    cfgs = cfgs.get("args", {})
-    BASE_DIR = Path(__file__).resolve().parents[2]
-    EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM", "")
-    
-    # Obtain paths for raw_json, pred_json and match_scores_json
-    combined_raw_json = Path(BASE_DIR, args.combined_raw_json)
-    pred_json = Path(BASE_DIR, args.pred_json)
-    EVAL_OUTPUT_DIR = Path(pred_json).parent
-
-    # Load the raw_data and pred_data jsons
-    raw_data = json.loads(combined_raw_json.read_text(encoding="utf-8"))
-    pred_data = json.loads(pred_json.read_text(encoding="utf-8"))
-    
-    # Match and score pred vs raw and save the results
-    logger.info("Evaluating Predicted output w.r.t Raw output using LLM as a judge.")
-    eval_for_all_aziende(
-        raw_data,
-        pred_data,
-        EVAL_OUTPUT_DIR,
-        use_gemini=args.use_gemini
-    )
-
-    
-    logger.info(f"Evaluation completed. Results saved to: \t {EVAL_OUTPUT_DIR}")
-
-
-
-## KEYS TO CORRECT:
-
-corrected = {
-    "2kind srl": {
-        "BILANCI_E_UTILI": {
-            "UtiliResidui": {
-                "utili_residui": True
-            },
-            "PercentualeRiservaLegale": {
-
-            },
-        },
-    },
-    "cnc world s.r.l.": {
-        "COMPENSO_DEGLI_AMMINISTRATORI": {
-
-        }
-    }
-}

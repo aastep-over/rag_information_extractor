@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable, List, Tuple, Dict, Optional
-from rapidfuzz import fuzz, process
 from difflib import get_close_matches
+from typing import Dict, Iterable, List, Optional, Tuple
 
+from rapidfuzz import fuzz, process
 
 # ---------- Matching output of analyze query with azienda names -----------
+
 
 def match_azienda_name(nome, items, threshold=0.70) -> str:
     lower_map = {x.lower(): x for x in items}
@@ -36,15 +37,16 @@ LEGAL_SUFFIX_RE = re.compile(
     flags=re.IGNORECASE | re.VERBOSE,
 )
 
-PUNCT_RE = re.compile(r"[^\w\s]", flags=re.UNICODE)  # keep letters/numbers/underscore/space
+PUNCT_RE = re.compile(
+    r"[^\w\s]", flags=re.UNICODE
+)  # keep letters/numbers/underscore/space
 WS_RE = re.compile(r"\s+", flags=re.UNICODE)
 
 
 def _strip_diacritics(s: str) -> str:
     # Normalize accents (è → e) for robust matching but keep original for reporting
     return "".join(
-        c for c in unicodedata.normalize("NFKD", s)
-        if not unicodedata.combining(c)
+        c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)
     )
 
 
@@ -73,8 +75,13 @@ class CompanyMatcher:
     - Pass your canonical company list (as stored in DB).
     - Optionally pass aliases map {alias: canonical}.
     """
-    def __init__(self, companies: Iterable[str], aliases: Optional[Dict[str, str]] = None):
-        self.canonical: List[str] = list(dict.fromkeys(companies))  # preserve order, unique
+
+    def __init__(
+        self, companies: Iterable[str], aliases: Optional[Dict[str, str]] = None
+    ):
+        self.canonical: List[str] = list(
+            dict.fromkeys(companies)
+        )  # preserve order, unique
         self.aliases = aliases or {}
 
         # Build a search list that includes aliases; keep mapping to canonical
@@ -97,12 +104,7 @@ class CompanyMatcher:
         self._choices = [norm for norm, _ in self.index_norm]
 
     def match(
-        self,
-        query: str,
-        *,
-        min_score: int = 80,
-        scorer=fuzz.WRatio,
-        top_k: int = 1
+        self, query: str, *, min_score: int = 80, scorer=fuzz.WRatio, top_k: int = 1
     ) -> List[Dict]:
         """
         Find closest company names for the user query.
@@ -122,7 +124,7 @@ class CompanyMatcher:
             q_norm,
             self._choices,
             scorer=scorer,
-            limit=max(10, top_k)  # grab a few extras then filter by threshold
+            limit=max(10, top_k),  # grab a few extras then filter by threshold
         )
 
         out: List[Dict] = []
@@ -132,11 +134,13 @@ class CompanyMatcher:
             # Map back to canonical
             canonical = self.index_norm[idx][1]
 
-            out.append({
-                "canonical": canonical,
-                "score": float(score),
-                "normalized_query": q_norm,
-            })
+            out.append(
+                {
+                    "canonical": canonical,
+                    "score": float(score),
+                    "normalized_query": q_norm,
+                }
+            )
 
             if len(out) >= top_k:
                 break
@@ -166,11 +170,14 @@ class CompanyMatcher:
 #         res = matcher.match(q, min_score=78, scorer=fuzz.token_set_ratio, top_k=1)
 #         print(f"\nQ: {q}\n→ {res}")
 
+
 # Check which models are available in Google API
 def check_google_api_models():
-    from google import genai
-    from dotenv import load_dotenv
     import os
+
+    from dotenv import load_dotenv
+    from google import genai
+
     load_dotenv()
 
     client = genai.Client()

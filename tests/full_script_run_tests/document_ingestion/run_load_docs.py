@@ -1,17 +1,17 @@
-import os 
-import time
 import argparse
-import logging
 import asyncio
+import logging
+import os
+import time
 from pathlib import Path
 
-from rag_info_extractor.document_ingestion.load_docs import aload_pdfs
 from dotenv import load_dotenv
-
+from rag_info_extractor.document_ingestion.load_docs import aload_pdfs
 from rag_info_extractor.utils.common_logging import configure_logging
 from rag_info_extractor.utils.load_config import cfgs
 
 logger = logging.getLogger(__name__)
+
 
 def main():
     # 1. Configure logging settings
@@ -23,14 +23,12 @@ def main():
         help="Enable DEBUG logging",
     )
     args = parser.parse_args()
-    configure_logging(
-        default_level=logging.DEBUG if args.verbose else logging.INFO
-    )
+    configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
 
     # 2. CONFIG FILE SETTINGS:
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
     LLM_MODEL = cfgs.get("LLM_MODEL")
-    EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM") 
+    EVALUATOR_LLM = cfgs.get("EVALUATOR_LLM")
     DATASET_TYPE = cfgs.get("DATASET_TYPE")
     CHUNKS_TYPE = cfgs.get("CHUNKS_TYPE")
     MAX_EMBED_TOKENS = cfgs.get("MAX_EMBED_TOKENS")
@@ -38,7 +36,9 @@ def main():
     PAGES_JOINING_STR = cfgs.get("PAGES_JOINING_STR", "\n")
     BASE_DIR = Path(__file__).resolve().parents[3]
 
-    DATASET_DIR = os.path.join(BASE_DIR, "data", "pdfs", DATASET_TYPE) #f"../data/pdfs/{DATASET_TYPE}"
+    DATASET_DIR = os.path.join(
+        BASE_DIR, "data", "pdfs", DATASET_TYPE
+    )  # f"../data/pdfs/{DATASET_TYPE}"
 
     # 3. Load env_vars
     load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -51,26 +51,32 @@ def main():
 
     # 4. Load pdfs
     logger.info(f"Loading the documents: {os.listdir(DATASET_DIR)}")
-    output = asyncio.run(aload_pdfs(
-        folder = DATASET_DIR,
-        HF_embedding_model_name = EMBEDDING_MODEL_PATH,
-        evaluator_llm = EVALUATOR_LLM,
-        llm_model = LLM_MODEL,
-        max_embed_tokens = MAX_EMBED_TOKENS,
-        chunks_type = CHUNKS_TYPE,
-        read_mode = READ_MODE,
-        pages_joining_str = PAGES_JOINING_STR    
-    ))
+    output = asyncio.run(
+        aload_pdfs(
+            folder=DATASET_DIR,
+            HF_embedding_model_name=EMBEDDING_MODEL_PATH,
+            evaluator_llm=EVALUATOR_LLM,
+            llm_model=LLM_MODEL,
+            max_embed_tokens=MAX_EMBED_TOKENS,
+            chunks_type=CHUNKS_TYPE,
+            read_mode=READ_MODE,
+            pages_joining_str=PAGES_JOINING_STR,
+        )
+    )
 
-    parent_chunks, children_chunks = output.get("parent_chunks", []), output.get("children_chunks", [])
+    parent_chunks, children_chunks = output.get("parent_chunks", []), output.get(
+        "children_chunks", []
+    )
 
     # 5.Save output in temp txt file
     with open("output_temp", "w", encoding="utf-8") as f:
         f.write("OUTPUT FOR load_docs.py\n\n")
-        
+
         f.write("PARENT CHUNKS: \n\n")
         for c in parent_chunks:
-            f.write(f"\n{"-"*50} CHUNK ID: {c.metadata.get("chunk_id")} \t chunking_method: {c.metadata.get("pattern_name")} {"-"*50}\n")
+            f.write(
+                f"\n{"-"*50} CHUNK ID: {c.metadata.get("chunk_id")} \t chunking_method: {c.metadata.get("pattern_name")} {"-"*50}\n"
+            )
             f.write(f"Azienda Name: {c.metadata.get("azienda")}\n")
             f.write(f"Azienda Sede: {c.metadata.get("sede")}\n")
             f.write(f"{c.page_content}\n\n")
@@ -82,7 +88,6 @@ def main():
         for c in children_chunks:
             f.write(f"\n{"-"*50} CHUNK ID: {c.metadata.get("chunk_id")} {"-"*50}\n")
             f.write(f"{c.page_content}\n\n")
-
 
 
 if __name__ == "__main__":

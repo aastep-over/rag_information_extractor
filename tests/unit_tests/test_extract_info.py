@@ -1,25 +1,31 @@
 # import pytest
 
+import asyncio
+import json
+import logging
+import os
+import re
+import textwrap
+
+from dotenv import load_dotenv
 from google import genai
-from tenacity import retry, wait_random_exponential
 from google.genai import types
 from pydantic import BaseModel, Field
-import json
-import re
-import os
-import textwrap
-import logging
-import asyncio
-from dotenv import load_dotenv
+from tenacity import retry, wait_random_exponential
+
 load_dotenv()
 
+from rag_info_extractor.info_schema.schemas.bilanci_e_utili import (
+    CapitaleSociale,
+    TermineApprovazioneBilancio,
+)
 from rag_info_extractor.info_schema.utils import return_default_json
-from rag_info_extractor.info_schema.schemas.bilanci_e_utili import CapitaleSociale, TermineApprovazioneBilancio
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 logging.basicConfig(level=logging.INFO)
 
-EXTRACTOR_SYSTEM_PROMPT = textwrap.dedent("""\
+EXTRACTOR_SYSTEM_PROMPT = textwrap.dedent(
+    """\
     SYSTEM:
 
     Sei un normalizzatore di RISPOSTE per un sistema RAG su statuti societari.
@@ -49,20 +55,20 @@ EXTRACTOR_SYSTEM_PROMPT = textwrap.dedent("""\
     {answer}
 
     Compila il modello {sub_module} usando SOLO la RISPOSTA e seguendo la DESCRIZIONE MODELLO.                          
-""")
+"""
+)
 
 
 def return_keys_description_schema(schema: BaseModel) -> str:
     output = {}
-    for k, v in schema.model_json_schema()['properties'].items():
-        output[k] = {
-            "descrizione": v['description'],
-            "type": v['type']
-        }
-    
+    for k, v in schema.model_json_schema()["properties"].items():
+        output[k] = {"descrizione": v["description"], "type": v["type"]}
+
     return json.dumps(output, indent=4, ensure_ascii=False)
 
-EXTRACTOR_SYSTEM_PROMPT_V1 = textwrap.dedent("""\
+
+EXTRACTOR_SYSTEM_PROMPT_V1 = textwrap.dedent(
+    """\
     SYSTEM:
 
         Sei un estrattore di informazioni. Il tuo unico compito è compilare un oggetto JSON.
@@ -100,7 +106,8 @@ EXTRACTOR_SYSTEM_PROMPT_V1 = textwrap.dedent("""\
 
         Compila il JSON con le chiavi della STRUTTURA JSON DA COMPILARE usando SOLO la RISPOSTA sopra.
         Scrivi SOLO il JSON. Nessun testo aggiuntivo.
-""")
+"""
+)
 
 
 @retry(wait=wait_random_exponential(min=1, max=60))
@@ -111,36 +118,39 @@ def extract_with_GOOGLE_API(
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
     retry_options = types.HttpRetryOptions(
-        initial_delay=2.0,      
-        max_delay=60.0,         
-        exp_base=2.0,         
-        attempts=10,             
-        http_status_codes=[408, 429, 500, 502, 503, 504]
+        initial_delay=2.0,
+        max_delay=60.0,
+        exp_base=2.0,
+        attempts=10,
+        http_status_codes=[408, 429, 500, 502, 503, 504],
     )
 
-    client = genai.Client(
-        http_options=types.HttpOptions(
-            retry_options=retry_options
-        )
-    )
+    client = genai.Client(http_options=types.HttpOptions(retry_options=retry_options))
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
     response = client.models.generate_content(
-        model= os.environ.get("EXTRACTOR__GEMINI_MODEL_ID", ""),#"gemma-4-26b-a4b-it", #"gemma-4-31b-it", #os.environ.get("EXTRACTOR__GEMINI_MODEL_ID", ""),
+        model=os.environ.get(
+            "EXTRACTOR__GEMINI_MODEL_ID", ""
+        ),  # "gemma-4-26b-a4b-it", #"gemma-4-31b-it", #os.environ.get("EXTRACTOR__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
         config=types.GenerateContentConfig(
-            temperature=0.0, # type: ignore
-        )
+            temperature=0.0,  # type: ignore
+        ),
     )
     logging.info("RESPONSE FROM GOOGLE API (inside function): %s", response.text)
     if response.text:
-        clean_string = re.sub(r'^```json\s*|\s*```$', '', response.text.strip(), flags=re.MULTILINE)
+        clean_string = re.sub(
+            r"^```json\s*|\s*```$", "", response.text.strip(), flags=re.MULTILINE
+        )
         response_json = json.loads(clean_string)
     else:
         logging.error("ERROR!NO RESPONSE FROM GOOGLE API")
-        response_json = return_default_json(info_schema.model_json_schema()['properties'])
+        response_json = return_default_json(
+            info_schema.model_json_schema()["properties"]
+        )
 
     return response_json
+
 
 @retry(wait=wait_random_exponential(min=1, max=60))
 async def aextract_with_GOOGLE_API(
@@ -150,18 +160,15 @@ async def aextract_with_GOOGLE_API(
 
     # The client gets the API key from the environment variable `GEMINI_API_KEY`.
     retry_options = types.HttpRetryOptions(
-        initial_delay=2.0,      
-        max_delay=60.0,         
-        exp_base=2.0,         
-        attempts=10,             
-        http_status_codes=[408, 429, 500, 502, 503, 504]
+        initial_delay=2.0,
+        max_delay=60.0,
+        exp_base=2.0,
+        attempts=10,
+        http_status_codes=[408, 429, 500, 502, 503, 504],
     )
 
     client = genai.Client(
-        http_options=types.HttpOptions(
-            retry_options=retry_options,
-            timeout=120 * 1000
-        )
+        http_options=types.HttpOptions(retry_options=retry_options, timeout=120 * 1000)
     )
 
     # check available models on https://ai.google.dev/gemini-api/docs/rate-limits?authuser=1&hl=it
@@ -169,65 +176,52 @@ async def aextract_with_GOOGLE_API(
         model=os.environ.get("EXTRACTOR__GEMINI_MODEL_ID", ""),
         contents=prompt_content,
         config=types.GenerateContentConfig(
-            temperature=0.0, # type: ignore
-        )
+            temperature=0.0,  # type: ignore
+        ),
     )
     logging.info("RESPONSE FROM GOOGLE API (inside function): %s", response.text)
     if response.text:
-        clean_string = re.sub(r'^```json\s*|\s*```$', '', response.text.strip(), flags=re.MULTILINE)
+        clean_string = re.sub(
+            r"^```json\s*|\s*```$", "", response.text.strip(), flags=re.MULTILINE
+        )
         response_json = json.loads(clean_string)
     else:
         logging.exception("ERROR!NO RESPONSE FROM GOOGLE API")
-        response_json = return_default_json(info_schema.model_json_schema()['properties'])
+        response_json = return_default_json(
+            info_schema.model_json_schema()["properties"]
+        )
 
     return response_json
 
-def extract_with_Ollama(
-    model: str,
-    info_schema: BaseModel,
-    prompt_content: str
-):
-    llm_for_extraction = OllamaLLM(
-        llm_model=model,
-        temperature=0
-    )
+
+def extract_with_Ollama(model: str, info_schema: BaseModel, prompt_content: str):
+    llm_for_extraction = OllamaLLM(llm_model=model, temperature=0)
 
     response = llm_for_extraction.invoke(
-        output_format = "structured",
-        info_schema = info_schema,
-        memory = prompt_content,
-        num_predict = 64,
-        temperature = 0,
-        cache = False
-    ) 
-
-    return response.model_dump() # type: ignore
-
-async def aextract_with_Ollama(
-    model: str,
-    info_schema: BaseModel,
-    prompt_content: str
-):
-    llm_for_extraction = OllamaLLM(
-        llm_model=model,
-        temperature=0
+        output_format="structured",
+        info_schema=info_schema,
+        memory=prompt_content,
+        num_predict=64,
+        temperature=0,
+        cache=False,
     )
+
+    return response.model_dump()  # type: ignore
+
+
+async def aextract_with_Ollama(model: str, info_schema: BaseModel, prompt_content: str):
+    llm_for_extraction = OllamaLLM(llm_model=model, temperature=0)
 
     response = await llm_for_extraction.ainvoke(
-        output_format = "structured",
-        info_schema = info_schema,
-        memory = prompt_content,
-        num_predict = 64,
-        temperature = 0,
-        cache = False
+        output_format="structured",
+        info_schema=info_schema,
+        memory=prompt_content,
+        num_predict=64,
+        temperature=0,
+        cache=False,
     )
 
-    return response.model_dump() # type: ignore
-
-
-
-
-
+    return response.model_dump()  # type: ignore
 
 
 if __name__ == "__main__":
@@ -244,16 +238,18 @@ relative alla struttura ed all’oggetto della società, entro centottanta giorn
 dalla sopradetta chiusura; in questi casi gli amministratori segnalano nella
 relazione prevista dall’art. 2428 del codice civile le ragioni della dilazione.
     """
-    
+
     # prompt_content = EXTRACTOR_SYSTEM_PROMPT.replace("{question}", question).replace("{answer}", answer).replace("{sub_module}", CapitaleSociale.model_json_schema()['title']).replace("{sub_module_description}", json.dumps(CapitaleSociale.model_json_schema()['properties'], indent=2, ensure_ascii=False))
-    
-    schema_description = return_keys_description_schema(module) # type:ignore
-    prompt_content = EXTRACTOR_SYSTEM_PROMPT_V1.replace("{answer}", answer).replace("{sub_module_description}", schema_description)
+
+    schema_description = return_keys_description_schema(module)  # type:ignore
+    prompt_content = EXTRACTOR_SYSTEM_PROMPT_V1.replace("{answer}", answer).replace(
+        "{sub_module_description}", schema_description
+    )
 
     # output = extract_with_GOOGLE_API(prompt_content, module) # type: ignore
     # output = asyncio.run(aextract_with_GOOGLE_API(prompt_content, module)) # type: ignore
     # output = extract_with_Ollama("gemma4:e2b", module, prompt_content) # type: ignore
-    output = asyncio.run(aextract_with_Ollama("gemma4:e2b", module, prompt_content)) # type: ignore
+    output = asyncio.run(aextract_with_Ollama("gemma4:e2b", module, prompt_content))  # type: ignore
 
     print(json.dumps(output, indent=4, ensure_ascii=False))
     module.model_validate(output)

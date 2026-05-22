@@ -1,20 +1,19 @@
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from transformers import AutoTokenizer
-
-import fitz
-import os
-import time
 import argparse
 import asyncio
 import logging
+import os
+import time
 from pathlib import Path
-from dotenv import load_dotenv
 
+import fitz
+from dotenv import load_dotenv
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from rag_info_extractor.document_ingestion.custom_chunking import custom_chunking
 from rag_info_extractor.utils.common_logging import configure_logging
 from rag_info_extractor.utils.load_config import cfgs
+from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +28,7 @@ def main():
         help="Enable DEBUG logging",
     )
     args = parser.parse_args()
-    configure_logging(
-        default_level=logging.DEBUG if args.verbose else logging.INFO
-    )
+    configure_logging(default_level=logging.DEBUG if args.verbose else logging.INFO)
 
     # 2. CONFIG FILE SETTINGS:
     EMBEDDING_MODEL_NAME = cfgs.get("EMBEDDING_MODEL_NAME")
@@ -121,9 +118,7 @@ def main():
         f.write("PARENT CHUNKS: \n\n")
         parent_chunks = chunks.get("whole_articles")
         for c in parent_chunks:
-            f.write(
-                f'\n{"-" * 50} CHUNK ID: {c.metadata.get("chunk_id")} {"-" * 50}\n'
-            )
+            f.write(f'\n{"-" * 50} CHUNK ID: {c.metadata.get("chunk_id")} {"-" * 50}\n')
             f.write(f"{c.page_content}\n\n")
 
         f.write(f'{"x" * 100}\n')
@@ -133,9 +128,7 @@ def main():
         f.write(f'last_child_id =  {chunks.get("last_child_id")}\n\n')
         docs_not_split = chunks.get("docs_not_split")
         for c in docs_not_split:
-            f.write(
-                f'\n{"-" * 50} CHUNK ID: {c.metadata.get("chunk_id")} {"-" * 50}\n'
-            )
+            f.write(f'\n{"-" * 50} CHUNK ID: {c.metadata.get("chunk_id")} {"-" * 50}\n')
             f.write(f"{c.page_content}\n\n")
 
 
@@ -149,4 +142,3 @@ if __name__ == "__main__":
         "Total time taken to run the script: %s",
         time.strftime("%H:%M:%S", time.gmtime(time.time() - t0)),
     )
-

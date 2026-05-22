@@ -1,18 +1,25 @@
 import json
 
 import pytest
+import rag_info_extractor.rag_pipeline_components.re_ranker as re_ranker
 from langchain_core.documents import Document
 from langchain_core.vectorstores.base import VectorStoreRetriever
 
-import rag_info_extractor.rag_pipeline_components.re_ranker as re_ranker
-
 
 def _doc(chunk_id, parent_id, text):
-    return Document(page_content=text, metadata={"chunk_id": chunk_id, "parent_id": parent_id})
+    return Document(
+        page_content=text, metadata={"chunk_id": chunk_id, "parent_id": parent_id}
+    )
 
 
 def test_tokens_normalizes_and_extracts_alnum_words():
-    assert re_ranker._tokens("Ciao, mondo! 123 è OK.") == ["ciao", "mondo", "123", "è", "ok"]
+    assert re_ranker._tokens("Ciao, mondo! 123 è OK.") == [
+        "ciao",
+        "mondo",
+        "123",
+        "è",
+        "ok",
+    ]
 
 
 def test_span_density_returns_zero_for_short_query_tokens_only():
@@ -20,7 +27,9 @@ def test_span_density_returns_zero_for_short_query_tokens_only():
 
 
 def test_span_density_computes_unique_query_coverage():
-    density = re_ranker._span_density("Policy obblighi policy", "Gli obblighi sono previsti")
+    density = re_ranker._span_density(
+        "Policy obblighi policy", "Gli obblighi sono previsti"
+    )
     assert density == 0.5
 
 
@@ -63,7 +72,9 @@ def test_cross_encode_rerank_selects_by_score_threshold(monkeypatch):
         _doc(2, 11, "bbb second text"),
         _doc(3, 12, "ccc third text"),
     ]
-    monkeypatch.setattr(re_ranker, "call_reranker_service", lambda query, documents: [0.2, 0.9, 0.3])
+    monkeypatch.setattr(
+        re_ranker, "call_reranker_service", lambda query, documents: [0.2, 0.9, 0.3]
+    )
 
     out = re_ranker.cross_encode_rerank(
         contexts=docs,
@@ -89,7 +100,9 @@ def test_cross_encode_rerank_promotes_parents_from_store(monkeypatch, tmp_path):
         _doc(1012, 101, "child two text"),
         _doc(2021, 202, "child three text"),
     ]
-    monkeypatch.setattr(re_ranker, "call_reranker_service", lambda query, documents: [0.9, 0.8, 0.7])
+    monkeypatch.setattr(
+        re_ranker, "call_reranker_service", lambda query, documents: [0.9, 0.8, 0.7]
+    )
 
     page_content_dir = tmp_path / "page_content"
     metadata_dir = tmp_path / "metadata"
@@ -97,9 +110,13 @@ def test_cross_encode_rerank_promotes_parents_from_store(monkeypatch, tmp_path):
     metadata_dir.mkdir()
 
     (page_content_dir / "101").write_text("parent 101 content", encoding="utf-8")
-    (metadata_dir / "101").write_text(json.dumps({"chunk_id": 101, "title": "p101"}), encoding="utf-8")
+    (metadata_dir / "101").write_text(
+        json.dumps({"chunk_id": 101, "title": "p101"}), encoding="utf-8"
+    )
     (page_content_dir / "202").write_text("parent 202 content", encoding="utf-8")
-    (metadata_dir / "202").write_text(json.dumps({"chunk_id": 202, "title": "p202"}), encoding="utf-8")
+    (metadata_dir / "202").write_text(
+        json.dumps({"chunk_id": 202, "title": "p202"}), encoding="utf-8"
+    )
 
     out = re_ranker.cross_encode_rerank(
         contexts=docs,
@@ -187,14 +204,22 @@ class _FakeCompressionRetriever(VectorStoreRetriever):
 
 def test_faster_retrieve_and_rerank_dedups_and_applies_filter(monkeypatch):
     docs = [
-        Document(page_content="start<JOIN>end", metadata={"chunk_id": 1, "azienda": "A"}),
-        Document(page_content="dup should drop", metadata={"chunk_id": 1, "azienda": "A"}),
-        Document(page_content="second<JOIN>text", metadata={"chunk_id": 2, "azienda": "A"}),
+        Document(
+            page_content="start<JOIN>end", metadata={"chunk_id": 1, "azienda": "A"}
+        ),
+        Document(
+            page_content="dup should drop", metadata={"chunk_id": 1, "azienda": "A"}
+        ),
+        Document(
+            page_content="second<JOIN>text", metadata={"chunk_id": 2, "azienda": "A"}
+        ),
     ]
     fake_retriever = object()
     fake_ccr = _FakeCompressionRetriever(docs)
 
-    monkeypatch.setattr(re_ranker, "CrossEncoderReranker", lambda model, top_n: object())
+    monkeypatch.setattr(
+        re_ranker, "CrossEncoderReranker", lambda model, top_n: object()
+    )
     monkeypatch.setattr(
         re_ranker,
         "ContextualCompressionRetriever",
@@ -221,14 +246,18 @@ def test_faster_retrieve_and_rerank_without_azienda(monkeypatch):
     docs = [Document(page_content="abcdefghijk", metadata={"chunk_id": 99})]
     fake_ccr = _FakeCompressionRetriever(docs)
 
-    monkeypatch.setattr(re_ranker, "CrossEncoderReranker", lambda model, top_n: object())
+    monkeypatch.setattr(
+        re_ranker, "CrossEncoderReranker", lambda model, top_n: object()
+    )
     monkeypatch.setattr(
         re_ranker,
         "ContextualCompressionRetriever",
         lambda base_compressor, base_retriever: fake_ccr,
     )
 
-    out = re_ranker.faster_retrieve_and_rerank(query="q", retriever=object(), top_n=1, save_full_chunks=False)
+    out = re_ranker.faster_retrieve_and_rerank(
+        query="q", retriever=object(), top_n=1, save_full_chunks=False
+    )
     assert fake_ccr.invoke_kwargs == {"query": "q", "k": 1}
     assert out["docs_texts"]["children"][0] == "abcdefghij ... bcdefghijk"
 
@@ -242,7 +271,9 @@ async def test_afaster_retrieve_and_rerank_async_path(monkeypatch):
     ]
     fake_ccr = _FakeCompressionRetriever(docs)
 
-    monkeypatch.setattr(re_ranker, "CrossEncoderReranker", lambda model, top_n: object())
+    monkeypatch.setattr(
+        re_ranker, "CrossEncoderReranker", lambda model, top_n: object()
+    )
     monkeypatch.setattr(
         re_ranker,
         "ContextualCompressionRetriever",
@@ -258,54 +289,66 @@ async def test_afaster_retrieve_and_rerank_async_path(monkeypatch):
         save_full_chunks=False,
     )
 
-    assert fake_ccr.ainvoke_kwargs == {"query": "aq", "filter": {"azienda": "ACME"}, "k": 3}
+    assert fake_ccr.ainvoke_kwargs == {
+        "query": "aq",
+        "filter": {"azienda": "ACME"},
+        "k": 3,
+    }
     assert out["docs_ids"]["children"] == [4, 5]
-    assert out["docs_texts"]["children"] == ["first\nchun ... rst\nchunk", "second\nchu ... ond\nchunk"]
+    assert out["docs_texts"]["children"] == [
+        "first\nchun ... rst\nchunk",
+        "second\nchu ... ond\nchunk",
+    ]
 
 
+import asyncio
+import os
 
-
-
-
+from langchain_chroma import Chroma
 
 # ======================================== XXX ========================================
-from rag_info_extractor.rag_pipeline.re_ranker import faster_retrieve_and_rerank, afaster_retrieve_and_rerank, across_encode_rerank, cross_encode_rerank
+from rag_info_extractor.rag_pipeline.re_ranker import (
+    across_encode_rerank,
+    afaster_retrieve_and_rerank,
+    cross_encode_rerank,
+    faster_retrieve_and_rerank,
+)
 from rag_info_extractor.utils.embedder import HFEmbedder
-from langchain_chroma import Chroma
-import os
-import asyncio
-
-
 
 DOC_STORE_LARGE_CHUNKS_PATH = "D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/data/large_chunks_dbs/temp_tests/custom_chunks_2"
 VECTOR_STORE_PATH = "D:/Documents/Italy/UNIPD/University Acadamico/TESI/project/rag_information_extractor/data/vector_dbs/temp_tests/custom_chunks_2"
 if not os.path.exists(DOC_STORE_LARGE_CHUNKS_PATH):
-    raise FileNotFoundError(f"DOC_STORE_LARGE_CHUNKS_PATH not found: {DOC_STORE_LARGE_CHUNKS_PATH}")
+    raise FileNotFoundError(
+        f"DOC_STORE_LARGE_CHUNKS_PATH not found: {DOC_STORE_LARGE_CHUNKS_PATH}"
+    )
 if not os.path.exists(VECTOR_STORE_PATH):
     raise FileNotFoundError(f"VECTOR_STORE_PATH not found: {VECTOR_STORE_PATH}")
 
 # Load Vector and Doc store
 embedding = HFEmbedder(normalize_embeddings=True)
-vector_store = Chroma(embedding_function=embedding,
-                    persist_directory=VECTOR_STORE_PATH,
-                    collection_name="pdf_chunks")
-retriever = vector_store.as_retriever(search_type="similarity",
-                                    search_kwargs={'k': 8})
+vector_store = Chroma(
+    embedding_function=embedding,
+    persist_directory=VECTOR_STORE_PATH,
+    collection_name="pdf_chunks",
+)
+retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 8})
+
 
 # Test functions
 def test_cross_encode_rerank():
     pass
 
+
 def test_faster_retrieve_and_rerank():
     QUERY = "Agli amministratori spetta il rimborso delle spese?"
     AZIENDA = "2kind srl"
     output = faster_retrieve_and_rerank(
-        query = QUERY,
-        retriever = retriever,
-        azienda = AZIENDA,
-        top_n = 4,
-        pages_joining_str = None,
-        save_full_chunks = False
+        query=QUERY,
+        retriever=retriever,
+        azienda=AZIENDA,
+        top_n=4,
+        pages_joining_str=None,
+        save_full_chunks=False,
     )
     for c in output["context"]:
         assert c.metadata.get("azienda") == AZIENDA
@@ -313,6 +356,7 @@ def test_faster_retrieve_and_rerank():
     assert output["docs_texts"] is not None
     assert output["docs_ids"].get("parents") == []
     assert output["docs_ids"].get("children") == [16, 18, 11, 10]
+
 
 async def test_afaster_retrieve_and_rerank():
     QUERY_1 = "Agli amministratori spetta il rimborso delle spese?"
@@ -322,26 +366,26 @@ async def test_afaster_retrieve_and_rerank():
 
     tasks = [
         afaster_retrieve_and_rerank(
-            query = q,
-            retriever = retriever,
-            azienda = a,
-            top_n = 4,
-            pages_joining_str = None,
-            save_full_chunks = False
+            query=q,
+            retriever=retriever,
+            azienda=a,
+            top_n=4,
+            pages_joining_str=None,
+            save_full_chunks=False,
         )
         for q, a in zip([QUERY_1, QUERY_2], [AZIENDA_1, AZIENDA_2])
     ]
     outputs = await asyncio.gather(*tasks)
 
     for i, output in enumerate(outputs):
-        if i == 0:            
+        if i == 0:
             for c in output["context"]:
                 assert c.metadata.get("azienda") == AZIENDA_1
             assert output["context"] is not None
             assert output["docs_texts"] is not None
             assert output["docs_ids"].get("parents") == []
             assert output["docs_ids"].get("children") == [16, 18, 11, 10]
-        
+
         if i == 1:
             for c in output["context"]:
                 assert c.metadata.get("azienda") == AZIENDA_2
@@ -349,7 +393,8 @@ async def test_afaster_retrieve_and_rerank():
             assert output["docs_texts"] is not None
             assert output["docs_ids"].get("parents") == []
             assert output["docs_ids"].get("children") == [4, 9, 2, 18]
- 
+
+
 if __name__ == "__main__":
     # test_faster_retrieve_and_rerank()
     asyncio.run(test_afaster_retrieve_and_rerank())

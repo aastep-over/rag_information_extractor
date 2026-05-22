@@ -1,9 +1,15 @@
 # scripts/common_logging.py
-import logging, os, sys
-import time, datetime
+import datetime
+import logging
+import os
+import sys
+import time
 from logging.handlers import RotatingFileHandler
 
-def configure_logging(env_var="RAG_LOG_LEVEL", default_level=logging.INFO, logfile=None):
+
+def configure_logging(
+    env_var="RAG_LOG_LEVEL", default_level=logging.INFO, logfile=None
+):
     # env var e.g. RAG_LOG_LEVEL=DEBUG or INFO
     level_name = os.getenv(env_var, None)
     if level_name:
@@ -13,16 +19,21 @@ def configure_logging(env_var="RAG_LOG_LEVEL", default_level=logging.INFO, logfi
 
     handlers = [logging.StreamHandler(sys.stdout)]
     if logfile:
-        handlers.append(RotatingFileHandler(logfile, maxBytes=10_000_000, backupCount=3, encoding="utf-8"))
+        handlers.append(
+            RotatingFileHandler(
+                logfile, maxBytes=10_000_000, backupCount=3, encoding="utf-8"
+            )
+        )
 
     logging.basicConfig(
         level=level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        handlers=handlers
+        handlers=handlers,
     )
     # OPTIONAL: reduce verbosity of noisy third-party libs
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("transformers").setLevel(logging.WARNING)
+
 
 # usage in a script:
 # from scripts.common_logging import configure_logging

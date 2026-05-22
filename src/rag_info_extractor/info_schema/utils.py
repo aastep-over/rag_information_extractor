@@ -1,10 +1,11 @@
-import re
 import importlib.util
 import inspect
-from typing import Dict, Type, List, DefaultDict
-from pathlib import Path
-from collections import defaultdict
 import json
+import re
+from collections import defaultdict
+from pathlib import Path
+from typing import DefaultDict, Dict, List, Type
+
 from pydantic import BaseModel
 
 
@@ -13,10 +14,35 @@ def word_to_number(num_str: str) -> int:
     """Parse a number written in letters (up to miliardi)"""
 
     number_system = {
-    'zero': 0, 'uno': 1, 'due': 2, 'tre': 3, 'quattro': 4, 'cinque': 5, 'sei': 6, 'sette': 7, 'otto': 8, 'nove': 9, 'dieci': 10, 
-    'undici': 11, 'dodici': 12, 'tredici': 13, 'quattordici': 14, 'quindici': 15, 'sedici': 16, 'diciassette': 17, 'diciotto': 18, 'diciannove': 19, 
-    'venti': 20, 'trenta': 30, 'quaranta': 40, 'cinquanta': 50, 'sessanta': 60, 'settanta': 70, 'ottanta': 80, 'novanta': 90, 
-    }  
+        "zero": 0,
+        "uno": 1,
+        "due": 2,
+        "tre": 3,
+        "quattro": 4,
+        "cinque": 5,
+        "sei": 6,
+        "sette": 7,
+        "otto": 8,
+        "nove": 9,
+        "dieci": 10,
+        "undici": 11,
+        "dodici": 12,
+        "tredici": 13,
+        "quattordici": 14,
+        "quindici": 15,
+        "sedici": 16,
+        "diciassette": 17,
+        "diciotto": 18,
+        "diciannove": 19,
+        "venti": 20,
+        "trenta": 30,
+        "quaranta": 40,
+        "cinquanta": 50,
+        "sessanta": 60,
+        "settanta": 70,
+        "ottanta": 80,
+        "novanta": 90,
+    }
 
     # Billions
     if "miliardo" in num_str or "miliardi" in num_str:
@@ -26,7 +52,7 @@ def word_to_number(num_str: str) -> int:
 
         left_val = 1 if left in ("", "un", "uno") else word_to_number(left)
         right_val = word_to_number(right) if right else 0
-     
+
         return left_val * 1_000_000_000 + right_val
 
     # Milions
@@ -39,7 +65,7 @@ def word_to_number(num_str: str) -> int:
         right_val = word_to_number(right) if right else 0
 
         return left_val * 1_000_000 + right_val
-    
+
     # Thousands
     if "mila" in num_str or "mille" in num_str:
         if "mila" in num_str:
@@ -54,33 +80,49 @@ def word_to_number(num_str: str) -> int:
         right_val = word_to_number(right) if right else 0
 
         return left_val * 1000 + right_val
-    
+
     # Hundreds
     if "cent" in num_str:
         left, right = num_str.split("cent", 1)
         left_val = 1 if left in ("", "un", "uno") else word_to_number(left)
 
         if len(right) > 1:
-            right_val = word_to_number(right) if right[:3] in ("uno", "ott") else word_to_number(right[1:])
+            right_val = (
+                word_to_number(right)
+                if right[:3] in ("uno", "ott")
+                else word_to_number(right[1:])
+            )
         else:
             right_val = 0
-        
+
         return left_val * 100 + right_val
-    
+
     # Tens and units
     else:
-        match = re.match(r"^(.*vent|trent|quarant|cinquant|sessant|settant|ottant|novant)(.*)", num_str)
+        match = re.match(
+            r"^(.*vent|trent|quarant|cinquant|sessant|settant|ottant|novant)(.*)",
+            num_str,
+        )
         if match:
-            tens = match.group(1) + 'i' if match.group(1) == 'vent' else match.group(1) + 'a'
-            units = match.group(2)[1:] if match.group(2) and match.group(2)[0] in ["i", "a"] else match.group(2)
-            units = units if units else 'zero'
+            tens = (
+                match.group(1) + "i"
+                if match.group(1) == "vent"
+                else match.group(1) + "a"
+            )
+            units = (
+                match.group(2)[1:]
+                if match.group(2) and match.group(2)[0] in ["i", "a"]
+                else match.group(2)
+            )
+            units = units if units else "zero"
         else:
-            tens = 'zero'
+            tens = "zero"
             units = num_str
 
         total = number_system.get(tens, 0) + number_system.get(units, 0)
-        
+
         return total
+
 
 def formatted_word_to_number(num_str: str) -> str:
     """Format integer with thousands separators (dot)."""
@@ -91,10 +133,11 @@ def formatted_word_to_number(num_str: str) -> str:
     # return as it is if already digit
     if num_str.isdigit():
         return num_str
-    
+
     # or try to find closest number
     n = word_to_number(num_str)
     return f"{n:,}".replace(",", ".")
+
 
 def return_default_json(basemodel_json_schema_properties: dict) -> dict:
     """
@@ -104,26 +147,29 @@ def return_default_json(basemodel_json_schema_properties: dict) -> dict:
     """
     default_json = {}
     for k, v in basemodel_json_schema_properties.items():
-        default_json[k] = v['default']
+        default_json[k] = v["default"]
     return default_json
+
 
 def return_keys_description_schema(schema: BaseModel) -> str:
     output_structure = {}
     keys_description = "Descrizione delle chiavi:"
 
-    for k, v in schema.model_json_schema()['properties'].items():
+    for k, v in schema.model_json_schema()["properties"].items():
         output_structure[k] = ""
         keys_description += f"\n{k}: {v['description']} (type: {v['type']})"
-    
+
     output = f"{json.dumps(output_structure, indent=4, ensure_ascii=False)}\n\n{keys_description}"
-    
+
     return output
+
 
 # Load all the schemas of info to be extracted from ./schemas
 def load_classes_from_path(
     path: str,
-    files_to_exclude: List[str]=[] # "bilanci_e_utili.py", "compenso_degli_amministratori.py", "info_generali.py"
-
+    files_to_exclude: List[
+        str
+    ] = [],  # "bilanci_e_utili.py", "compenso_degli_amministratori.py", "info_generali.py"
 ) -> Dict[str, Type]:
     """
     Load all .py files in `path` (non-recursive) and return classes defined in them.
@@ -155,6 +201,7 @@ def load_classes_from_path(
                     key = f"{module.__name__}.{name}"
                     classes[key] = obj
     return classes
+
 
 # Group classes in same module in a list
 def group_classes_by_module(classes: Dict[str, Type]) -> Dict[str, List[Type]]:

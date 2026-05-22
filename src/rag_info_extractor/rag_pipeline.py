@@ -2,6 +2,7 @@ from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain_core.documents import Document
 from langchain_core.vectorstores.base import VectorStoreRetriever
+
 # Detect if generated answer is in italiano for verifier node
 from langdetect import DetectorFactory, detect
 from langgraph.graph import END, START, StateGraph
@@ -9,28 +10,39 @@ from pydantic import BaseModel, Field
 from sentence_transformers import CrossEncoder
 from transformers import AutoModel
 
-DetectorFactory.seed = 0 # probablistic algo.
+DetectorFactory.seed = 0  # probablistic algo.
 
 import asyncio
+
 # logging relative
 import logging
 import re
+
 # Python native
 import time
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, TypedDict
 
 import aiofiles
-from rag_info_extractor.rag_pipeline_components.analyze_query import (Search,
-                                                           aanalyze_query,
-                                                           analyze_query)
+
+from rag_info_extractor.rag_pipeline_components.analyze_query import (
+    Search,
+    aanalyze_query,
+    analyze_query,
+)
 from rag_info_extractor.rag_pipeline_components.generator import agenerate, generate
 from rag_info_extractor.rag_pipeline_components.re_ranker import (
-    across_encode_rerank, afaster_retrieve_and_rerank, cross_encode_rerank,
-    faster_retrieve_and_rerank)
+    across_encode_rerank,
+    afaster_retrieve_and_rerank,
+    cross_encode_rerank,
+    faster_retrieve_and_rerank,
+)
 from rag_info_extractor.rag_pipeline_components.retrieve import aretrieve, retrieve
-from rag_info_extractor.utils.apis_connector import (acall_pruner_service,
-                                                     call_pruner_service)
+from rag_info_extractor.utils.apis_connector import (
+    acall_pruner_service,
+    call_pruner_service,
+)
+
 # Import rag parts from modules
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 
@@ -39,10 +51,9 @@ from rag_info_extractor.utils.llm_connector import OllamaLLM
 logger = logging.getLogger(__name__)
 
 
-
-
-# TODO: 
+# TODO:
 # Aggiungere se query non menziona l'azienda, farlo per ogni azienda con citazione
+
 
 class State(TypedDict):
     question: str
@@ -50,7 +61,6 @@ class State(TypedDict):
     context: List[Document]
     rerank_debug: Dict
     answer: str
-
 
 
 class RAGPipeline:
@@ -63,8 +73,7 @@ class RAGPipeline:
         doc_store_path: Optional[str],
         pages_joining_str: Optional[str],
         run_async: bool = False,
-        use_google_api: bool = False
-        
+        use_google_api: bool = False,
     ):
         """
         Args:
@@ -75,7 +84,7 @@ class RAGPipeline:
 
         # Initialize/Load the vector db and doc_store and llm
         self.retriever = db_retriever
-        self.llm = OllamaLLM(llm_model = llm_model)
+        self.llm = OllamaLLM(llm_model=llm_model)
 
         # Retrieve full/Parent chunks if doc_store_path passed
         if doc_store_path:
@@ -90,29 +99,33 @@ class RAGPipeline:
         # Other inits
         self.pages_joining_str = pages_joining_str
         self.use_google_api = use_google_api
-        
+
         # Initialize the langgraph
         if run_async:
             graph = (
                 StateGraph(State)
-                .add_node("analyze_query", self.arun_analyze_query)           
+                .add_node("analyze_query", self.arun_analyze_query)
                 .add_node("retrieve", self.arun_retrieve)
                 .add_node("cross_encode_rerank", self.arun_cross_encode_rerank)
                 .add_node("pruning", self.arun_pruning)
                 .add_node("generate", self.arun_generate)
-                .add_node("faster_retrieve_and_rerank", self.arun_faster_retrieve_and_rerank)
-                # .add_node("verify", self.arun_verify)    
+                .add_node(
+                    "faster_retrieve_and_rerank", self.arun_faster_retrieve_and_rerank
+                )
+                # .add_node("verify", self.arun_verify)
             )
         else:
             graph = (
                 StateGraph(State)
-                .add_node("analyze_query", self.run_analyze_query)           
+                .add_node("analyze_query", self.run_analyze_query)
                 .add_node("retrieve", self.run_retrieve)
                 .add_node("cross_encode_rerank", self.run_cross_encode_rerank)
                 .add_node("pruning", self.run_pruning)
                 .add_node("generate", self.run_generate)
-                .add_node("faster_retrieve_and_rerank", self.run_faster_retrieve_and_rerank)
-                # .add_node("verify", self.run_verify)    
+                .add_node(
+                    "faster_retrieve_and_rerank", self.run_faster_retrieve_and_rerank
+                )
+                # .add_node("verify", self.run_verify)
             )
 
         # add edges to the graph
@@ -120,7 +133,7 @@ class RAGPipeline:
 
         graph.add_edge("analyze_query", "retrieve")
         # graph.add_edge("analyze_query", "faster_retrieve_and_rerank")
-        
+
         graph.add_edge("retrieve", "cross_encode_rerank")
         # graph.add_edge("retrieve", "pruning")
         # graph.add_edge("cross_encode_rerank", "pruning")
@@ -131,17 +144,27 @@ class RAGPipeline:
         # graph.add_edge("faster_retrieve_and_rerank", "generate")
 
         # graph.add_edge("generate", "verify")
-        
+
         graph.add_edge("generate", END)
         # graph.add_edge("verify", END)
-    
+
         self.graph = graph.compile()
 
         # For calculation of latency
-        self.latency = {k: "0.00 s" for k in
-                        ["analyze_query","retrieve","pruning","generate", "re_ranking", "faster_retrieve_and_rerank", "overall"]}
+        self.latency = {
+            k: "0.00 s"
+            for k in [
+                "analyze_query",
+                "retrieve",
+                "pruning",
+                "generate",
+                "re_ranking",
+                "faster_retrieve_and_rerank",
+                "overall",
+            ]
+        }
         # For storing responses for testing
-        self.retrieved_docs_ids: Dict[str, List[int]] = {} 
+        self.retrieved_docs_ids: Dict[str, List[int]] = {}
         self.re_ranked_docs_ids: Dict[str, List[int]] = {}
         self.retrieved_docs_texts: Dict[str, List[str]] = {}
         self.re_ranked_docs_texts: Dict[str, List[str]] = {}
@@ -151,150 +174,162 @@ class RAGPipeline:
         for k in self.latency:
             self.latency[k] = "0.00 s"
 
-
-    
     # =========== NODES ====================
 
     # --------- ANALYZE QUERY ----------
-    def run_analyze_query(self, state: State, nome_azienda: str=""):
+    def run_analyze_query(self, state: State, nome_azienda: str = ""):
         """
         Re-phrase query to improve it
-        
-        nome_azienda (str): name of the società for which the information needs to be extracted 
+
+        nome_azienda (str): name of the società for which the information needs to be extracted
         """
-        
+
         t1 = time.time()
-        
-        logger.debug(f"\nInputs to analyze_query:\nquestion: {state['question']}\nazienda_name_records: {self.azienda_name_records}\nuse_google_api: {self.use_google_api}\n")
+
+        logger.debug(
+            f"\nInputs to analyze_query:\nquestion: {state['question']}\nazienda_name_records: {self.azienda_name_records}\nuse_google_api: {self.use_google_api}\n"
+        )
         response: Search = analyze_query(
-            question = state['question'],
-            llm = self.llm,
-            nome_azienda = "",
-            azienda_name_records = self.azienda_name_records,
-            use_google_api = self.use_google_api
+            question=state["question"],
+            llm=self.llm,
+            nome_azienda="",
+            azienda_name_records=self.azienda_name_records,
+            use_google_api=self.use_google_api,
         )
         # ==================== FOR QUICK TESTING =========================================
         # question, optimized_query, azienda_name= re.findall(r"(.*) QUERY: (.*) Nome della società: (.*)", state['question'])[0] # TODO: REMOVE AFTER TESTING
         # state['question'] = question
         # response = Search(query=optimized_query, azienda=azienda_name) # TODO: REMOVE AFTER TESTING
         # =========================   XXX   =========================================
-        
-        self.latency['analyze_query'] = f"{time.time() - t1:.3f} s"
+
+        self.latency["analyze_query"] = f"{time.time() - t1:.3f} s"
         # save query for testing
-        self.optimized_query = {"query": response.query, "azienda": response.azienda}###
+        self.optimized_query = {
+            "query": response.query,
+            "azienda": response.azienda,
+        }  ###
 
         logger.debug(f"\nOutput of analyze_query:\n'query': {response}\n\n")
         return {"query": response}
-    
+
     # Async version
-    async def arun_analyze_query(self, state: State, nome_azienda: str=""):
+    async def arun_analyze_query(self, state: State, nome_azienda: str = ""):
         """
         Re-phrase query to improve it
-        
-        nome_azienda (str): name of the società for which the information needs to be extracted 
+
+        nome_azienda (str): name of the società for which the information needs to be extracted
         """
-        
+
         t1 = time.time()
-        
-        logger.debug(f"\nInputs to (async) analyze_query:\nquestion: {state['question']}\nazienda_name_records: {self.azienda_name_records}\nuse_google_api: {self.use_google_api}\n")
-        response: Search = await aanalyze_query(
-            question = state['question'],
-            llm = self.llm,
-            nome_azienda = "",
-            azienda_name_records = self.azienda_name_records,
-            use_google_api = self.use_google_api
+
+        logger.debug(
+            f"\nInputs to (async) analyze_query:\nquestion: {state['question']}\nazienda_name_records: {self.azienda_name_records}\nuse_google_api: {self.use_google_api}\n"
         )
-        
-        self.latency['analyze_query'] = f"{time.time() - t1:.3f} s"
-        self.optimized_query = {"query": response.query, "azienda": response.azienda}###
+        response: Search = await aanalyze_query(
+            question=state["question"],
+            llm=self.llm,
+            nome_azienda="",
+            azienda_name_records=self.azienda_name_records,
+            use_google_api=self.use_google_api,
+        )
+
+        self.latency["analyze_query"] = f"{time.time() - t1:.3f} s"
+        self.optimized_query = {
+            "query": response.query,
+            "azienda": response.azienda,
+        }  ###
 
         logger.debug(f"\nOutput of (async) analyze_query:\n'query': {response}\n\n")
         return {"query": response}
 
     # --------- RETRIEVER ----------
     def run_retrieve(self, state: State):
-        
+
         t1 = time.time()
         query = state["query"].query
         azienda = state["query"].azienda
 
         logger.debug(f"\nInputs to retrieve:\nquery: {query}\nazienda: {azienda}\n")
         output_retrieve = retrieve(
-            retriever = self.retriever,
-            query = query,
-            doc_store_large_chunks_path = self.doc_store_path,
-            azienda = azienda,
-            pages_joining_str = self.pages_joining_str,
-            retrieve_parents = False,
-            save_full_chunks = False
+            retriever=self.retriever,
+            query=query,
+            doc_store_large_chunks_path=self.doc_store_path,
+            azienda=azienda,
+            pages_joining_str=self.pages_joining_str,
+            retrieve_parents=False,
+            save_full_chunks=False,
         )
 
         retrieved_docs = output_retrieve.get("context", [])
         self.retrieved_docs_ids = output_retrieve.get("retrieved_docs_ids", {})
         self.retrieved_docs_texts = output_retrieve.get("retrieved_docs_texts", {})
 
-        self.latency['retrieve'] = f"{time.time() - t1:.3f} s"
-        
+        self.latency["retrieve"] = f"{time.time() - t1:.3f} s"
+
         logger.debug(f"\nOutput of retrieve:\n'context': {retrieved_docs}\n\n")
-        return {"context": retrieved_docs} #retrieved_docs_parent
+        return {"context": retrieved_docs}  # retrieved_docs_parent
 
     # Async version
     async def arun_retrieve(self, state: State):
-        
+
         t1 = time.time()
         query = state["query"].query
         azienda = state["query"].azienda
 
-        logger.debug(f"\nInputs to (async) retrieve:\nquery: {query}\nazienda: {azienda}\n")
+        logger.debug(
+            f"\nInputs to (async) retrieve:\nquery: {query}\nazienda: {azienda}\n"
+        )
         output_retrieve = await aretrieve(
-            retriever = self.retriever,
-            query = query,
-            doc_store_large_chunks_path = self.doc_store_path,
-            azienda = azienda,
-            pages_joining_str = self.pages_joining_str,
-            retrieve_parents = False, # TODO: DEFAULT=False
-            save_full_chunks = False
+            retriever=self.retriever,
+            query=query,
+            doc_store_large_chunks_path=self.doc_store_path,
+            azienda=azienda,
+            pages_joining_str=self.pages_joining_str,
+            retrieve_parents=False,  # TODO: DEFAULT=False
+            save_full_chunks=False,
         )
 
         retrieved_docs = output_retrieve.get("context", [])
         self.retrieved_docs_ids = output_retrieve.get("retrieved_docs_ids", {})
         self.retrieved_docs_texts = output_retrieve.get("retrieved_docs_texts", {})
 
-        self.latency['retrieve'] = f"{time.time() - t1:.3f} s"
-        
+        self.latency["retrieve"] = f"{time.time() - t1:.3f} s"
+
         logger.debug(f"\nOutput of (async) retrieve:\n'context': {retrieved_docs}\n\n")
-        return {"context": retrieved_docs} #retrieved_docs_parent
+        return {"context": retrieved_docs}  # retrieved_docs_parent
 
     # --------- PRUNER ----------
     def run_pruning(self, state: State):
         # Execute pruning
-        ori_context = [c.page_content for c in state['context']]
+        ori_context = [c.page_content for c in state["context"]]
         t1 = time.time()
 
-        logger.debug(f"\nInputs to pruning:\nquery: {state['question']}\ndocuments: {ori_context}\n")
+        logger.debug(
+            f"\nInputs to pruning:\nquery: {state['question']}\ndocuments: {ori_context}\n"
+        )
         pruned_docs = call_pruner_service(
-            query = state['question'],
-            documents = ori_context
+            query=state["question"], documents=ori_context
         )
 
-        self.latency['pruning'] = f"{time.time() - t1:.3f} s"
+        self.latency["pruning"] = f"{time.time() - t1:.3f} s"
 
         logger.debug(f"\nOutput of pruning:\n'context': {pruned_docs}\n\n")
         return {"context": [Document(page_content=c) for c in pruned_docs]}
 
     # Async version
     async def arun_pruning(self, state: State):
-        # Execute pruning  
-        ori_context = [c.page_content for c in state['context']]
+        # Execute pruning
+        ori_context = [c.page_content for c in state["context"]]
         t1 = time.time()
 
-        logger.debug(f"\nInputs to (async) pruning:\nquery: {state['question']}\ndocuments: {ori_context}\n")
+        logger.debug(
+            f"\nInputs to (async) pruning:\nquery: {state['question']}\ndocuments: {ori_context}\n"
+        )
         pruned_docs = await acall_pruner_service(
-            query = state['question'],
-            documents = ori_context
+            query=state["question"], documents=ori_context
         )
 
-        self.latency['pruning'] = f"{time.time() - t1:.3f} s"
+        self.latency["pruning"] = f"{time.time() - t1:.3f} s"
 
         logger.debug(f"\nOutput of (async) pruning:\n'context': {pruned_docs}\n\n")
         return {"context": [Document(page_content=c) for c in pruned_docs]}
@@ -302,20 +337,22 @@ class RAGPipeline:
     # --------- RE-RANKER ----------
     def run_cross_encode_rerank(self, state: State) -> Dict[str, List[Document]]:
         """Re-ranks the retrieved docs"""
-    
+
         t1 = time.time()
 
-        logger.debug(f"\nInputs to cross_encode_rerank:\ncontexts: {state['context']}\nquestion: {state['question']}\n")
+        logger.debug(
+            f"\nInputs to cross_encode_rerank:\ncontexts: {state['context']}\nquestion: {state['question']}\n"
+        )
         re_ranker_output = cross_encode_rerank(
-            contexts = state["context"],
-            question = state["question"],
-            doc_store_large_chunks_path = self.doc_store_path,
-            k_min = 2,
-            k_max = 5,
-            rel_thresh = 0.4,
-            max_promoted_parents = 3,
-            use_parent_heuristics = False,
-            save_full_chunks = False
+            contexts=state["context"],
+            question=state["question"],
+            doc_store_large_chunks_path=self.doc_store_path,
+            k_min=2,
+            k_max=5,
+            rel_thresh=0.4,
+            max_promoted_parents=3,
+            use_parent_heuristics=False,
+            save_full_chunks=False,
         )
 
         re_ranked_docs = re_ranker_output.get("context", [])
@@ -326,28 +363,32 @@ class RAGPipeline:
         # save debug info
         state["rerank_debug"] = re_ranker_debug_info
 
-        self.latency['re_ranking'] = f"{time.time() - t1:.3f} s"
+        self.latency["re_ranking"] = f"{time.time() - t1:.3f} s"
 
-        logger.debug(f"\nOutput of cross_encode_rerank:\n'context': {re_ranked_docs}\n\n")
-        return {"context": re_ranked_docs} ### re_ranked_docs_parent
+        logger.debug(
+            f"\nOutput of cross_encode_rerank:\n'context': {re_ranked_docs}\n\n"
+        )
+        return {"context": re_ranked_docs}  ### re_ranked_docs_parent
 
     # Async version
     async def arun_cross_encode_rerank(self, state: State) -> Dict[str, List[Document]]:
         """Async implementation of run_cross_encode_rerank"""
-    
+
         t1 = time.time()
-        
-        logger.debug(f"\nInputs to (async) cross_encode_rerank:\ncontexts: {state['context']}\nquestion: {state['question']}\n")
+
+        logger.debug(
+            f"\nInputs to (async) cross_encode_rerank:\ncontexts: {state['context']}\nquestion: {state['question']}\n"
+        )
         re_ranker_output = await across_encode_rerank(
-            contexts = state["context"],
-            question = state["question"],
-            doc_store_large_chunks_path = self.doc_store_path,
-            k_min = 2,
-            k_max = 5,
-            rel_thresh = 0.4,
-            max_promoted_parents = 3,
-            use_parent_heuristics = False,
-            save_full_chunks = False
+            contexts=state["context"],
+            question=state["question"],
+            doc_store_large_chunks_path=self.doc_store_path,
+            k_min=2,
+            k_max=5,
+            rel_thresh=0.4,
+            max_promoted_parents=3,
+            use_parent_heuristics=False,
+            save_full_chunks=False,
         )
 
         re_ranked_docs = re_ranker_output.get("context", [])
@@ -358,10 +399,12 @@ class RAGPipeline:
         # save debug info
         state["rerank_debug"] = re_ranker_debug_info
 
-        self.latency['re_ranking'] = f"{time.time() - t1:.3f} s"
+        self.latency["re_ranking"] = f"{time.time() - t1:.3f} s"
 
-        logger.debug(f"\nOutput of (async) cross_encode_rerank:\n'context': {re_ranked_docs}\n\n")
-        return {"context": re_ranked_docs} ### re_ranked_docs_parent
+        logger.debug(
+            f"\nOutput of (async) cross_encode_rerank:\n'context': {re_ranked_docs}\n\n"
+        )
+        return {"context": re_ranked_docs}  ### re_ranked_docs_parent
 
     # --------- FAST RETRIEVER + RE-RANKER ----------
     def run_faster_retrieve_and_rerank(self, state: State):
@@ -370,23 +413,24 @@ class RAGPipeline:
         query = state["query"].query
         azienda = state["query"].azienda
 
-        logger.debug(f"\nInputs to faster_retrieve_and_rerank:\nquery: {query}\nazienda: {azienda}\n")
+        logger.debug(
+            f"\nInputs to faster_retrieve_and_rerank:\nquery: {query}\nazienda: {azienda}\n"
+        )
         output = faster_retrieve_and_rerank(
-            query = query,
-            retriever = self.retriever,
-            azienda = azienda,
-            top_n = 6,
-            pages_joining_str = self.pages_joining_str,
-            save_full_chunks = True # default=False
+            query=query,
+            retriever=self.retriever,
+            azienda=azienda,
+            top_n=6,
+            pages_joining_str=self.pages_joining_str,
+            save_full_chunks=True,  # default=False
         )
 
         docs = output.get("context", [])
         self.re_ranked_docs_ids = output.get("docs_ids", {})
         self.re_ranked_docs_texts = output.get("docs_texts", {})
-    
 
-        self.latency['faster_retrieve_and_rerank'] = f"{time.time() - t1:.3f} s" 
-        
+        self.latency["faster_retrieve_and_rerank"] = f"{time.time() - t1:.3f} s"
+
         logger.debug(f"\nOutput of faster_retrieve_and_rerank:\n'context': {docs}\n\n")
         return {"context": docs}
 
@@ -397,54 +441,58 @@ class RAGPipeline:
         query = state["query"].query
         azienda = state["query"].azienda
 
-        logger.debug(f"\nInputs to (async) faster_retrieve_and_rerank:\nquery: {query}\nazienda: {azienda}\n")
+        logger.debug(
+            f"\nInputs to (async) faster_retrieve_and_rerank:\nquery: {query}\nazienda: {azienda}\n"
+        )
         output = await afaster_retrieve_and_rerank(
-            query = query,
-            retriever = self.retriever,
-            azienda = azienda,
-            top_n = 6,
-            pages_joining_str = self.pages_joining_str,
-            save_full_chunks = True # default=False
+            query=query,
+            retriever=self.retriever,
+            azienda=azienda,
+            top_n=6,
+            pages_joining_str=self.pages_joining_str,
+            save_full_chunks=True,  # default=False
         )
 
         docs = output.get("context", [])
         self.re_ranked_docs_ids = output.get("docs_ids", {})
         self.re_ranked_docs_texts = output.get("docs_texts", {})
-    
 
-        self.latency['faster_retrieve_and_rerank'] = f"{time.time() - t1:.3f} s" 
-        
-        logger.debug(f"\nOutput of (async) faster_retrieve_and_rerank:\n'context': {docs}\n\n")
+        self.latency["faster_retrieve_and_rerank"] = f"{time.time() - t1:.3f} s"
+
+        logger.debug(
+            f"\nOutput of (async) faster_retrieve_and_rerank:\n'context': {docs}\n\n"
+        )
         return {"context": docs}
 
     # --------- GENERATOR ----------
     def run_generate(self, state: State):
-        
+
         t1 = time.time()
 
-        logger.debug(f"\nInputs to generate:\nquestion: {state['question']}\ncontexts:\n {state['context']}\n")
-        answer = generate(
-            question = state["question"],
-            contexts = state["context"],
-            llm = self.llm,
-            contexts_sep = "||",
-            use_google_api = self.use_google_api
+        logger.debug(
+            f"\nInputs to generate:\nquestion: {state['question']}\ncontexts:\n {state['context']}\n"
         )
-        
+        answer = generate(
+            question=state["question"],
+            contexts=state["context"],
+            llm=self.llm,
+            contexts_sep="||",
+            use_google_api=self.use_google_api,
+        )
 
         # detect if answer in italiano, if not regenerate (1 try max to avoid constant loop)
         if detect(answer) != "it":
-            print("Regenerating answer....")###
+            print("Regenerating answer....")  ###
             answer = generate(
-                question = state["question"],
-                contexts = state["context"],
-                llm = self.llm,
-                contexts_sep = "||",
-                additional_prompt = "Rispondere sempre in Italiano.",
-                use_google_api = self.use_google_api
+                question=state["question"],
+                contexts=state["context"],
+                llm=self.llm,
+                contexts_sep="||",
+                additional_prompt="Rispondere sempre in Italiano.",
+                use_google_api=self.use_google_api,
             )
-        
-        self.latency['generate'] = f"{time.time() - t1:.3f} s"
+
+        self.latency["generate"] = f"{time.time() - t1:.3f} s"
 
         logger.debug(f"\nOutput of generate:\n'answer': {answer}\n\n")
         return {"answer": answer}
@@ -454,28 +502,30 @@ class RAGPipeline:
         """Async version run_generate"""
         t1 = time.time()
 
-        logger.debug(f"\nInputs to (async) generate:\nquestion: {state['question']}\ncontexts:\n {state['context']}\n")
+        logger.debug(
+            f"\nInputs to (async) generate:\nquestion: {state['question']}\ncontexts:\n {state['context']}\n"
+        )
         answer = await agenerate(
-            question = state["question"],
-            contexts = state["context"],
-            llm = self.llm,
-            contexts_sep = "||",
-            use_google_api = self.use_google_api
+            question=state["question"],
+            contexts=state["context"],
+            llm=self.llm,
+            contexts_sep="||",
+            use_google_api=self.use_google_api,
         )
 
         # detect if answer in italiano, if not regenerate (1 try max to avoid constant loop)
         if detect(answer) != "it":
-            print("Regenerating answer....")###
+            print("Regenerating answer....")  ###
             answer = await agenerate(
-                question = state["question"],
-                contexts = state["context"],
-                llm = self.llm,
-                contexts_sep = "||",
-                additional_prompt = "Rispondere sempre in Italiano.",
-                use_google_api = self.use_google_api
+                question=state["question"],
+                contexts=state["context"],
+                llm=self.llm,
+                contexts_sep="||",
+                additional_prompt="Rispondere sempre in Italiano.",
+                use_google_api=self.use_google_api,
             )
-        
-        self.latency['generate'] = f"{time.time() - t1:.3f} s"
+
+        self.latency["generate"] = f"{time.time() - t1:.3f} s"
 
         logger.debug(f"\nOutput of (async) generate:\n'answer': {answer}\n\n")
         return {"answer": answer}
@@ -490,12 +540,12 @@ class RAGPipeline:
         # verdict = self.verifier.verify(draft_ans, contexts)
         # Single check → return immediately with either original or fallback
         # final_ans = draft_ans if verdict["all_supported"] else FALLBACK_IT
-        
+
         # return {"answer": final_ans}
         pass
 
     # =========== XXX ====================
-    
+
     # other methods
     def get_response(self, query: str, nome_azienda: str = "") -> str:
         """
@@ -507,12 +557,12 @@ class RAGPipeline:
         Returns:
             str: The chatbot's response.
         """
-    
+
         try:
             t1 = time.time()
-            response = self.graph.invoke({"question": query}) # type: ignore 
-            self.latency['overall'] = f"{time.time() - t1:.3f} s"
-            return response['answer']  
+            response = self.graph.invoke({"question": query})  # type: ignore
+            self.latency["overall"] = f"{time.time() - t1:.3f} s"
+            return response["answer"]
         except Exception as e:
             print(f"Exception: {e}")
             return ""
@@ -522,16 +572,15 @@ class RAGPipeline:
         """Async version of get_response"""
         try:
             t1 = time.time()
-            response = await self.graph.ainvoke({"question": query}) # type: ignore 
-            self.latency['overall'] = f"{time.time() - t1:.3f} s"
-            return response['answer']  
+            response = await self.graph.ainvoke({"question": query})  # type: ignore
+            self.latency["overall"] = f"{time.time() - t1:.3f} s"
+            return response["answer"]
         except Exception as e:
             print(f"Exception: {e}")
             logger.exception(f"Exception: {e}")
             return ""
 
-
-    def save_DAG_diagram(self, directory: str=""):
+    def save_DAG_diagram(self, directory: str = ""):
         if directory:
             filename = f"{directory}/rag_pipeline_components.png"
         else:
@@ -543,9 +592,9 @@ class RAGPipeline:
         else:
             with open(filename, "wb") as png:
                 png.write(dag_img)
-    
+
     # Async version
-    async def asave_DAG_diagram(self, directory: str=""):
+    async def asave_DAG_diagram(self, directory: str = ""):
         if directory:
             filename = f"{directory}/rag_pipeline_components.png"
         else:
@@ -557,4 +606,3 @@ class RAGPipeline:
         else:
             async with aiofiles.open(filename, "wb") as png:
                 await png.write(dag_img)
-

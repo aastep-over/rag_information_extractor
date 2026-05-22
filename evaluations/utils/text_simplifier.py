@@ -3,16 +3,11 @@ from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 
 def simplify_text_with_llm(
-    text: str, 
-    model: str = "gemma3:4b",
-    temperature: float = 0
+    text: str, model: str = "gemma3:4b", temperature: float = 0
 ) -> str:
-    
+
     # Simplify the text using the LLM
-    llm = OllamaLLM(
-        llm_model = model,
-        temperature = temperature
-    )
+    llm = OllamaLLM(llm_model=model, temperature=temperature)
 
     system_prompt = """
     System:
@@ -26,16 +21,15 @@ def simplify_text_with_llm(
     - Se l’input contiene più frasi/righe, restituiscile nello stesso ordine, una per riga.
 
     """
-    
+
     prompt_content = system_prompt + "\nHuman:" + text
     response = llm.get_response_text(prompt_content)
 
     return response
 
 
-
 if __name__ == "__main__":
-    
+
     text = """
     L'utile netto di bilancio distribuibile è soltanto quello realmente conseguito e risultante dal bilancio
     regolarmente approvato. L'assemblea che approva il bilancio decide sulla distribuzione degli uli ai soci con

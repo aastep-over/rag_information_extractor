@@ -1,16 +1,17 @@
-from langchain_core.documents import Document
-from langchain_core.vectorstores.base import VectorStoreRetriever
-from langchain.storage import LocalFileStore
-
-# Python native
-from typing import List, Optional, Dict, TypedDict
+import asyncio
 import json
-import aiofiles, asyncio
 
 # Logging
 import logging
-logger = logging.getLogger(__name__)
 
+# Python native
+from typing import Dict, List, Optional, TypedDict
+
+import aiofiles
+from langchain_core.documents import Document
+from langchain_core.vectorstores.base import VectorStoreRetriever
+
+logger = logging.getLogger(__name__)
 
 
 class _Output_retrieve(TypedDict):
@@ -18,18 +19,18 @@ class _Output_retrieve(TypedDict):
     retrieved_docs_ids: Dict[str, List[int]]
     retrieved_docs_texts: Dict[str, List[str]]
 
+
 def retrieve(
     retriever: VectorStoreRetriever,
     query: str,
-    doc_store_large_chunks_path: Optional[str], 
+    doc_store_large_chunks_path: Optional[str],
     azienda: str = "",
     pages_joining_str: Optional[str] = None,
     retrieve_parents: bool = False,
-    save_full_chunks: bool = False
-
+    save_full_chunks: bool = False,
 ) -> _Output_retrieve:
-    
-    logger.info("\n --------------- NODE: __retrieve__ ------------------------\n")###
+
+    logger.info("\n --------------- NODE: __retrieve__ ------------------------\n")  ###
 
     # If no azienda name specified, fetch for all
     if not azienda:
@@ -50,18 +51,20 @@ def retrieve(
         metadatas = [{} for i in range(len(parent_keys))]
 
         for i, id in enumerate(parent_keys):
-            with open(f"{doc_store_large_chunks_path}/page_content/{id}", encoding="utf-8") as f:
+            with open(
+                f"{doc_store_large_chunks_path}/page_content/{id}", encoding="utf-8"
+            ) as f:
                 page_contents[i] = f.read()
-            with open(f"{doc_store_large_chunks_path}/metadata/{id}", encoding="utf-8") as f:
+            with open(
+                f"{doc_store_large_chunks_path}/metadata/{id}", encoding="utf-8"
+            ) as f:
                 metadatas[i] = json.load(f)
-        
+
         if page_contents and metadatas:
             retrieved_docs: List[Document] = [
-                Document(
-                    page_content=p, 
-                    metadata=m
-                )
-                for p, m in zip(page_contents, metadatas) if (p and m)
+                Document(page_content=p, metadata=m)
+                for p, m in zip(page_contents, metadatas)
+                if (p and m)
             ]
 
     # remove page joining str to avoid confusion for llm in generation phase
@@ -76,33 +79,37 @@ def retrieve(
     children_retrieved_docs_texts = []
     for d in retrieved_docs:
         if "parent_id" in d.metadata.keys():
-            children_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
+            children_retrieved_docs_ids.append(d.metadata.get("chunk_id"))
 
             if save_full_chunks:
                 children_retrieved_docs_texts.append(f"{d.page_content}")
             else:
-                children_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+                children_retrieved_docs_texts.append(
+                    f"{d.page_content[:10]} ... {d.page_content[-10:]}"
+                )
         else:
-            parents_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
+            parents_retrieved_docs_ids.append(d.metadata.get("chunk_id"))
 
             if save_full_chunks:
                 parents_retrieved_docs_texts.append(f"{d.page_content}")
             else:
-                parents_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+                parents_retrieved_docs_texts.append(
+                    f"{d.page_content[:10]} ... {d.page_content[-10:]}"
+                )
 
     retrieved_docs_ids = {
         "parents": parents_retrieved_docs_ids,
-        "children": children_retrieved_docs_ids
-    }### retrieved_docs_parent
+        "children": children_retrieved_docs_ids,
+    }  ### retrieved_docs_parent
     retrieved_docs_texts = {
         "parents": parents_retrieved_docs_texts,
-        "children": children_retrieved_docs_texts
+        "children": children_retrieved_docs_texts,
     }
-    
+
     return _Output_retrieve(
-        context = retrieved_docs,
-        retrieved_docs_ids = retrieved_docs_ids,
-        retrieved_docs_texts = retrieved_docs_texts
+        context=retrieved_docs,
+        retrieved_docs_ids=retrieved_docs_ids,
+        retrieved_docs_texts=retrieved_docs_texts,
     )
 
 
@@ -110,15 +117,16 @@ def retrieve(
 async def aretrieve(
     retriever: VectorStoreRetriever,
     query: str,
-    doc_store_large_chunks_path: Optional[str], 
+    doc_store_large_chunks_path: Optional[str],
     azienda: str = "",
     pages_joining_str: Optional[str] = None,
     retrieve_parents: bool = False,
-    save_full_chunks: bool = False
-
+    save_full_chunks: bool = False,
 ) -> _Output_retrieve:
 
-    logger.info("\n --------------- NODE: (async) __retrieve__ ------------------------\n")###
+    logger.info(
+        "\n --------------- NODE: (async) __retrieve__ ------------------------\n"
+    )  ###
 
     # If no azienda name specified, fetch for all
     if not azienda:
@@ -139,23 +147,31 @@ async def aretrieve(
         metadatas = [{} for i in range(len(parent_keys))]
 
         async def _load_parent_chunk(idx, id):
-            async with aiofiles.open(f"{doc_store_large_chunks_path}/page_content/{id}", encoding="utf-8", mode='r') as f:
+            async with aiofiles.open(
+                f"{doc_store_large_chunks_path}/page_content/{id}",
+                encoding="utf-8",
+                mode="r",
+            ) as f:
                 page_contents[idx] = await f.read()
 
-            async with aiofiles.open(f"{doc_store_large_chunks_path}/metadata/{id}", encoding="utf-8", mode='r') as f:
+            async with aiofiles.open(
+                f"{doc_store_large_chunks_path}/metadata/{id}",
+                encoding="utf-8",
+                mode="r",
+            ) as f:
                 json_content = await f.read()
                 metadatas[idx] = json.loads(json_content)
 
         # store them as Document obj
-        await asyncio.gather(*[_load_parent_chunk(i, id) for i, id in enumerate(parent_keys)])
-        
+        await asyncio.gather(
+            *[_load_parent_chunk(i, id) for i, id in enumerate(parent_keys)]
+        )
+
         if page_contents and metadatas:
             retrieved_docs: List[Document] = [
-                Document(
-                    page_content=p, 
-                    metadata=m
-                )
-                for p, m in zip(page_contents, metadatas) if (p and m)
+                Document(page_content=p, metadata=m)
+                for p, m in zip(page_contents, metadatas)
+                if (p and m)
             ]
 
     # remove page joining str to avoid confusion for llm in generation phase
@@ -170,34 +186,35 @@ async def aretrieve(
     children_retrieved_docs_texts = []
     for d in retrieved_docs:
         if "parent_id" in d.metadata.keys():
-            children_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
+            children_retrieved_docs_ids.append(d.metadata.get("chunk_id"))
 
             if save_full_chunks:
                 children_retrieved_docs_texts.append(f"{d.page_content}")
             else:
-                children_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+                children_retrieved_docs_texts.append(
+                    f"{d.page_content[:10]} ... {d.page_content[-10:]}"
+                )
         else:
-            parents_retrieved_docs_ids.append(d.metadata.get('chunk_id'))
+            parents_retrieved_docs_ids.append(d.metadata.get("chunk_id"))
 
             if save_full_chunks:
                 parents_retrieved_docs_texts.append(f"{d.page_content}")
             else:
-                parents_retrieved_docs_texts.append(f"{d.page_content[:10]} ... {d.page_content[-10:]}")
+                parents_retrieved_docs_texts.append(
+                    f"{d.page_content[:10]} ... {d.page_content[-10:]}"
+                )
 
     retrieved_docs_ids = {
         "parents": parents_retrieved_docs_ids,
-        "children": children_retrieved_docs_ids
+        "children": children_retrieved_docs_ids,
     }
     retrieved_docs_texts = {
         "parents": parents_retrieved_docs_texts,
-        "children": children_retrieved_docs_texts
+        "children": children_retrieved_docs_texts,
     }
-    
+
     return _Output_retrieve(
-        context = retrieved_docs,
-        retrieved_docs_ids = retrieved_docs_ids,
-        retrieved_docs_texts = retrieved_docs_texts
+        context=retrieved_docs,
+        retrieved_docs_ids=retrieved_docs_ids,
+        retrieved_docs_texts=retrieved_docs_texts,
     )
-
-
-

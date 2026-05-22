@@ -1,38 +1,38 @@
-from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
-
-from tqdm import tqdm
+import asyncio
+import json
+import logging
+import os
+import re
+import textwrap
+import time
 
 # python native
 from pathlib import Path
-from typing import Dict, Type, List, Tuple
-import json
-import textwrap
-import time
-import re
-import asyncio
+from typing import Dict, List, Tuple, Type
+
 import aiofiles
-import os
-import logging
 from dotenv import load_dotenv
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
+from tqdm import tqdm
 
 load_dotenv("../.env")
+
+# GEMINI API libraries
+from google import genai
+from google.genai import types
+from tenacity import retry, wait_random_exponential
 
 # from other modules
 from rag_info_extractor.info_schema.utils import (
     formatted_word_to_number,
-    load_classes_from_path,
     group_classes_by_module,
+    load_classes_from_path,
     return_default_json,
     return_keys_description_schema,
 )
 from rag_info_extractor.rag_pipeline import RAGPipeline
 from rag_info_extractor.utils.llm_connector import OllamaLLM
-
-# GEMINI API libraries
-from google import genai
-from tenacity import retry, wait_random_exponential
-from google.genai import types
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
+from typing import ClassVar, Literal
+
 from pydantic import BaseModel, Field
-from typing import Literal, ClassVar
 
 
 class PercentualeRiservaLegale(BaseModel):
@@ -9,14 +10,18 @@ class PercentualeRiservaLegale(BaseModel):
     1) "Quale percentuale degli utili deve essere accantonata da destinare alla riserva legale?"
     Chiavi: percentuale_utili
     """
-    question: ClassVar[str] = "Quale percentuale degli utili deve essere accantonata da destinare alla riserva legale?" 
+
+    question: ClassVar[str] = (
+        "Quale percentuale degli utili deve essere accantonata da destinare alla riserva legale?"
+    )
     percentuale_utili: str = Field(
         default="",
         description=(
             "Numero che rappresenta Percentuale di utili da accantonare. Restituisci Solo il numero esempio: 33% → 33 or trentatre per cento → trentatre"
             "Se non specificato nella RISPOSTA → stringa vuota."
-        )
+        ),
     )
+
 
 class CapitaleSociale(BaseModel):
     """
@@ -25,14 +30,16 @@ class CapitaleSociale(BaseModel):
     1) "Qual è l’ammontare del capitale sociale della società?"
     Chiavi: capitale_sociale_euro
     """
+
     question: ClassVar[str] = "Qual è l’ammontare del capitale sociale della società?"
     capitale_sociale_euro: str = Field(
         default="",
         description=(
             "Valore numerico in euro del capitale sociale. "
             "Se non specificato nella RISPOSTA → stringa vuota."
-        )
+        ),
     )
+
 
 class TermineApprovazioneBilancio(BaseModel):
     """
@@ -54,8 +61,8 @@ class TermineApprovazioneBilancio(BaseModel):
             "Non convertire/normalizzare (non trasformare “duecento” in “200”);"
             "Se non specificato → stringa vuota."
         ),
-        # json_schema_extra={"word_to_number": True}, # need to parse through word_to_number once returned by llm 
-    ) 
+        # json_schema_extra={"word_to_number": True}, # need to parse through word_to_number once returned by llm
+    )
     termine_prorogato_giorni: str = Field(
         default="",
         description=(
@@ -68,8 +75,12 @@ class TermineApprovazioneBilancio(BaseModel):
 
     # Store which functions to apply post-process(after generation) and to which variables of the class
     post_process_func_var: ClassVar[dict[str, list]] = {
-        "formatted_word_to_number": ["termine_ordinario_giorni", "termine_prorogato_giorni"],
-        }
+        "formatted_word_to_number": [
+            "termine_ordinario_giorni",
+            "termine_prorogato_giorni",
+        ],
+    }
+
 
 class DataChiusuraEsercizio(BaseModel):
     """
@@ -78,14 +89,16 @@ class DataChiusuraEsercizio(BaseModel):
     1) "Qual è la data di chiusura dell’esercizio sociale?"
     Chiavi: data_chiusura_esercizio
     """
+
     question: ClassVar[str] = "Qual è la data di chiusura dell’esercizio sociale?"
     data_chiusura_esercizio: str = Field(
         default="",
         description=(
             "Data di chiusura dell'esercizio come appare nel documento (es. '30 dicembre'). "
             "Se non specificato → stringa vuota."
-        )
+        ),
     )
+
 
 class UtiliResidui(BaseModel):
     """
@@ -94,11 +107,12 @@ class UtiliResidui(BaseModel):
     1) "Cosa si fanno degli utili residui secondo lo statuto?"
     Chiavi: utili_residui
     """
+
     question: ClassVar[str] = "Cosa si fanno degli utili residui secondo lo statuto?"
     utili_residui: str = Field(
         default="",
         description=(
             "Sintesi della destinazione degli utili residui. "
             "Se non specificato → stringa vuota."
-        )
+        ),
     )

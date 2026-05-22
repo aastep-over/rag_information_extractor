@@ -1,6 +1,7 @@
-import yaml 
 import os
 from pathlib import Path
+
+import yaml
 
 # 1. Dynamically find the Project Root
 # This file is in: src/BCP/utils/config_loader.py
@@ -10,14 +11,15 @@ from pathlib import Path
 # .parents[3] -> PROJECT_ROOT (Project_C4)
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-def load_config(cfg_path: str="config.yaml"):
+
+def load_config(cfg_path: str = "config.yaml"):
     """
     Loads the YAML config and converts relative paths to absolute paths
     so they work on any OS without errors.
     """
     # 2. Define path to config.yaml
     CONFIG_PATH = PROJECT_ROOT / cfg_path
-    
+
     if not CONFIG_PATH.exists():
         raise FileNotFoundError(f"❌ Config file not found at: {CONFIG_PATH}")
 
@@ -29,10 +31,11 @@ def load_config(cfg_path: str="config.yaml"):
     # for key, value in config['paths'].items():
     #     # Only convert if it looks like a path (simple string check)
     #     config['paths'][key] = str(PROJECT_ROOT / value) if value else None
-    
+
     # config['paths']['root'] = str(PROJECT_ROOT)
 
     return config
+
 
 # 3. Load configs in this file and import 'cfgs' in others
 cfgs = load_config()
@@ -40,8 +43,8 @@ cfgs = load_config()
 
 if __name__ == "__main__":
     import json
-    from copy import deepcopy
     import re
+    from copy import deepcopy
 
     # cfgs_to_save = deepcopy(cfgs)
     # for k, v in cfgs_to_save['paths'].items():

@@ -1,20 +1,19 @@
+# Python native
+import asyncio
+
+# Logging
+import logging
+import re
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Pattern, Tuple, TypedDict
+
 from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
 from transformers import AutoTokenizer
 
-
-# Python native
-import asyncio
-import re
-from typing import TypedDict, List, Dict, Pattern, Optional, Tuple, Any
-from collections import defaultdict
-
-
 # from other modules
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 
-# Logging
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -99,7 +98,7 @@ _ART_WITH_NUM_poliambulatorio = re.compile(
     (?P<title>[^\n]{0,160})?         # optional title on same line
     \s*$
     """,
-) # only removed ignorecase
+)  # only removed ignorecase
 
 _NUMBER_TITLE_unica_societa_benefit = re.compile(
     r"""(?imx)
@@ -117,7 +116,7 @@ _NUMBER_TITLE_unica_societa_benefit = re.compile(
     )
     \s*$
     """,
-) # added negative lookhead
+)  # added negative lookhead
 
 _NUMBER_TITLE_cnc_world = re.compile(
     r"""(?imx)
@@ -134,7 +133,7 @@ _NUMBER_TITLE_cnc_world = re.compile(
         (?:(?:[IVXLCDMivxlcdm]\s*){1,8})
     )$
     """,
-) # title before number
+)  # title before number
 
 _NUMBER_TITLE_logistica_rapida = re.compile(
     r"""(?imx)
@@ -152,7 +151,7 @@ _NUMBER_TITLE_logistica_rapida = re.compile(
     )
     \s*$
     """,
-) # allow non-capital a-z in title
+)  # allow non-capital a-z in title
 
 
 ARTICLE_PATTERNS: Dict[str, Pattern] = {
@@ -161,12 +160,14 @@ ARTICLE_PATTERNS: Dict[str, Pattern] = {
     "art_keyword_poliambulatorio": _ART_WITH_NUM_poliambulatorio,
     "number_title_unica_societa_benefit": _NUMBER_TITLE_unica_societa_benefit,
     "number_title_cnc_world": _NUMBER_TITLE_cnc_world,
-    "number_title_logistica_rapida": _NUMBER_TITLE_logistica_rapida
+    "number_title_logistica_rapida": _NUMBER_TITLE_logistica_rapida,
 }
 
 
 # Function to decide how are the headings/section separations using llm
-async def _detect_article_style_llm(text: str, llm: Optional[OllamaLLM]) -> Optional[Pattern]:
+async def _detect_article_style_llm(
+    text: str, llm: Optional[OllamaLLM]
+) -> Optional[Pattern]:
     """
     Ask llm which stile is used for separting Articols/paragraphs.
     Returns a regex pattern to use to chunk the articles
@@ -181,7 +182,7 @@ async def _detect_article_style_llm(text: str, llm: Optional[OllamaLLM]) -> Opti
         for ln in lines:
             if len(ln) <= 80 or ln.isupper():
                 sample.append(ln)
-            if len(sample) >= 30: # 30 sentences/lines enough to detect pattern. 
+            if len(sample) >= 30:  # 30 sentences/lines enough to detect pattern.
                 break
         return "\n".join(sample)[:2000] if sample else text[:1000]
 
@@ -204,25 +205,25 @@ async def _detect_article_style_llm(text: str, llm: Optional[OllamaLLM]) -> Opti
 
     try:
         ans = (
-            await llm.ainvoke(
-                output_format = "text",
-                memory = prompt,
-                cache = False
-            )
-        ).content.strip() # type:ignore
+            await llm.ainvoke(output_format="text", memory=prompt, cache=False)
+        ).content.strip()  # type:ignore
         pat_to_extract_pattern = r"```python\s*\r?\n([\s\S]*?)\r?\n```"
         suggested_pattern = re.findall(pat_to_extract_pattern, ans)[0]
-        ans = re.compile(fr"""{suggested_pattern}""")
+        ans = re.compile(rf"""{suggested_pattern}""")
     except Exception:
         return None
 
     return ans
 
-async def _choose_best_pattern(text: str, llm: Optional[OllamaLLM] = None) -> Tuple[str, Pattern]:
+
+async def _choose_best_pattern(
+    text: str, llm: Optional[OllamaLLM] = None
+) -> Tuple[str, Pattern]:
     """
     Sceglie il pattern che trova più match plausibili.
     Se tutti deboli, prova LLM per suggerire lo stile; se ancora nulla, ritorna il più 'robusto'.
     """
+
     # for async
     def _count() -> Dict[str, int]:
         return {k: len(list(p.finditer(text))) for k, p in ARTICLE_PATTERNS.items()}
@@ -232,7 +233,7 @@ async def _choose_best_pattern(text: str, llm: Optional[OllamaLLM] = None) -> Tu
     viable = {k: c for k, c in counts.items() if c >= 3}
     if viable:
         # choose more prominent
-        k = max(viable, key=viable.get) # type: ignore
+        k = max(viable, key=viable.get)  # type: ignore
         return k, ARTICLE_PATTERNS[k]
 
     else:
@@ -242,8 +243,7 @@ async def _choose_best_pattern(text: str, llm: Optional[OllamaLLM] = None) -> Tu
             return "llm_pattern", suggested_pattern
 
     # Fallback to Recursive splitter
-    return None, None # type:ignore
-
+    return None, None  # type:ignore
 
 
 def _split_by_pattern(text: str, pattern: re.Pattern) -> Dict[str, Any]:
@@ -265,14 +265,16 @@ def _split_by_pattern(text: str, pattern: re.Pattern) -> Dict[str, Any]:
         logger.info("NO MATCHES FOUND FOR THE SELECTED PATTERN!")
         return {
             "split_successful": False,
-            "chunks": [{
-            "header": None,
-            "num": None,
-            "title": None,
-            "content": text.strip(),
-            "start": 0,
-            "end": len(text)
-        }]
+            "chunks": [
+                {
+                    "header": None,
+                    "num": None,
+                    "title": None,
+                    "content": text.strip(),
+                    "start": 0,
+                    "end": len(text),
+                }
+            ],
         }
 
     chunks: List[Dict] = []
@@ -282,14 +284,16 @@ def _split_by_pattern(text: str, pattern: re.Pattern) -> Dict[str, Any]:
     if first_start > 0:
         pre = text[:first_start].strip()
         if pre:
-            chunks.append({
-                "header": None,
-                "num": None,
-                "title": None,
-                "content": pre,
-                "start": 0,
-                "end": first_start
-            })
+            chunks.append(
+                {
+                    "header": None,
+                    "num": None,
+                    "title": None,
+                    "content": pre,
+                    "start": 0,
+                    "end": first_start,
+                }
+            )
 
     # Blocks for every header
     for i, m in enumerate(matches):
@@ -301,65 +305,84 @@ def _split_by_pattern(text: str, pattern: re.Pattern) -> Dict[str, Any]:
         title = m.groupdict().get("title")
         header = m.group(0).strip()
 
-        chunks.append({
-            "header": header,
-            "num": num.strip() if num else None,
-            "title": title.strip() if title else None,
-            "content": block,
-            "start": start,
-            "end": end
-        })
+        chunks.append(
+            {
+                "header": header,
+                "num": num.strip() if num else None,
+                "title": title.strip() if title else None,
+                "content": block,
+                "start": start,
+                "end": end,
+            }
+        )
 
-    return {
-        "split_successful": True,
-        "chunks": chunks
-    }
-
+    return {"split_successful": True, "chunks": chunks}
 
 
 async def chunk_statuto_by_articoli(
     doc: Document,
     evaluator_llm: str,
     pages_joining_str: Optional[str],
-    use_llm: bool = True
+    use_llm: bool = True,
 ) -> Dict[str, Any]:
     """
     Spezza il testo per Articolo, restituendo { pattern_name, chunks }.
     """
     llm = OllamaLLM(llm_model=evaluator_llm, temperature=0) if use_llm else None
-    
+
     text = doc.page_content.strip()
 
-    pattern_name, pat = await _choose_best_pattern(text, llm) # 4 possibilitis: art_keyword, number_title, llm_pattern, None
+    pattern_name, pat = await _choose_best_pattern(
+        text, llm
+    )  # 4 possibilitis: art_keyword, number_title, llm_pattern, None
 
     # log pattern used for splitting
-    logger.info("Suggested pattern for splitting document",
-            extra={"source": doc.metadata.get("source", "<unknown>"), "pattern": pattern_name})
+    logger.info(
+        "Suggested pattern for splitting document",
+        extra={
+            "source": doc.metadata.get("source", "<unknown>"),
+            "pattern": pattern_name,
+        },
+    )
 
     # If you want the detailed pattern text only when debugging:
-    logger.debug(f'Pattern details for document {doc.metadata.get("source", "<unknown>")}: {pat}')
-    
+    logger.debug(
+        f'Pattern details for document {doc.metadata.get("source", "<unknown>")}: {pat}'
+    )
+
     if pat is None:
         # tutto il documento come unico chunk
         return {
-            "pattern_name": None, 
-            "chunks": [{
-                "header": None, "num": None, "title": None,
-                "content": text, "start": 0, "end": len(text),
-            }],
+            "pattern_name": None,
+            "chunks": [
+                {
+                    "header": None,
+                    "num": None,
+                    "title": None,
+                    "content": text,
+                    "start": 0,
+                    "end": len(text),
+                }
+            ],
         }
 
     # esegui lo split in thread (CPU-bound ma breve)
     output_split_by_pattern = await asyncio.to_thread(_split_by_pattern, text, pat)
-    split_successful, chunks = output_split_by_pattern.get("split_successful", False), output_split_by_pattern.get("chunks", [])
+    split_successful, chunks = output_split_by_pattern.get(
+        "split_successful", False
+    ), output_split_by_pattern.get("chunks", [])
 
-    # Evaluate if split correct 
+    # Evaluate if split correct
     if split_successful and pages_joining_str:
-        
+
         # Check if too few (or too many) chunks
-        num_pages = re.split(fr"{pages_joining_str}", text)
-        too_few = len(chunks) <= 0.3 * len(num_pages) # num_chunks less than 30% of num pages
-        too_many = len(chunks) > 4 *  len(num_pages) # num_chunks more than 400% of num pages
+        num_pages = re.split(rf"{pages_joining_str}", text)
+        too_few = len(chunks) <= 0.3 * len(
+            num_pages
+        )  # num_chunks less than 30% of num pages
+        too_many = len(chunks) > 4 * len(
+            num_pages
+        )  # num_chunks more than 400% of num pages
 
         # Check if start of each chunk matches with the header split used for splitting
         def _starts_with_header(text: str, header_re: Pattern) -> bool:
@@ -371,24 +394,27 @@ async def chunk_statuto_by_articoli(
 
         # hard fails
         hard_fail = (
-            header_rate < 0.7 or # less than 70% of chunks fail the pattern used to split by articles/sub-paragraphs
-            too_few or
-            too_many
+            header_rate
+            < 0.7  # less than 70% of chunks fail the pattern used to split by articles/sub-paragraphs
+            or too_few
+            or too_many
         )
 
-        if hard_fail: 
+        if hard_fail:
             split_successful = None
             pattern_name = None
-            chunks = [{
-                "header": None, "num": None, "title": None,
-                "content": text, "start": 0, "end": len(text),
-            }]
+            chunks = [
+                {
+                    "header": None,
+                    "num": None,
+                    "title": None,
+                    "content": text,
+                    "start": 0,
+                    "end": len(text),
+                }
+            ]
 
-    return {
-        "pattern_name": pattern_name, 
-        "chunks": chunks
-        }
-
+    return {"pattern_name": pattern_name, "chunks": chunks}
 
 
 class _Output__custom_chunking(TypedDict):
@@ -400,17 +426,17 @@ class _Output__custom_chunking(TypedDict):
 
 
 async def custom_chunking(
-        docs: List[Document],
-        text_splitter,
-        tokenizer,
-        evaluator_llm: str,
-        max_embed_tokens: int,
-        pages_joining_str: Optional[str], 
-        use_llm: bool = False,
-        llm_concurrency: int = 3,
-    ) -> _Output__custom_chunking:
+    docs: List[Document],
+    text_splitter,
+    tokenizer,
+    evaluator_llm: str,
+    max_embed_tokens: int,
+    pages_joining_str: Optional[str],
+    use_llm: bool = False,
+    llm_concurrency: int = 3,
+) -> _Output__custom_chunking:
     """
-    Test chunking based on Articoli, if a chunk has size more than max_embed_tokens, split it using Recursive splitter. 
+    Test chunking based on Articoli, if a chunk has size more than max_embed_tokens, split it using Recursive splitter.
     """
 
     # Chunk by articoli if possible
@@ -418,25 +444,27 @@ async def custom_chunking(
 
     async def _chunk_one(doc: Document) -> Dict[str, List[Dict]]:
         async with sem:
-            return await chunk_statuto_by_articoli(doc, evaluator_llm, use_llm=use_llm, pages_joining_str=pages_joining_str)
+            return await chunk_statuto_by_articoli(
+                doc, evaluator_llm, use_llm=use_llm, pages_joining_str=pages_joining_str
+            )
 
-    per_doc_chunks = await asyncio.gather(*[_chunk_one(d) for d in docs]) 
+    per_doc_chunks = await asyncio.gather(*[_chunk_one(d) for d in docs])
 
     # If no pattern detected return None for fallback logic of fixed size chunking
     pattern_detected = False
     for c in per_doc_chunks:
-        pattern_detected = pattern_detected or c['pattern_name'] is not None
+        pattern_detected = pattern_detected or c["pattern_name"] is not None
     if not pattern_detected:
-        logger.warning("WARNING! \t No Pattern Detected, falling to Fixed-size chunking")
-        return _Output__custom_chunking(
-            whole_articles = [],
-            chunks = [],
-            docs_not_split = [],
-            last_parent_id = 0,
-            last_child_id = 0
+        logger.warning(
+            "WARNING! \t No Pattern Detected, falling to Fixed-size chunking"
         )
-            
-
+        return _Output__custom_chunking(
+            whole_articles=[],
+            chunks=[],
+            docs_not_split=[],
+            last_parent_id=0,
+            last_child_id=0,
+        )
 
     # Re-create Document object from chunks obtained
     index_chunks = []
@@ -445,38 +473,42 @@ async def custom_chunking(
     for doc, art in zip(docs, per_doc_chunks):
         base_meta = dict(doc.metadata or {})
         pattern_name = art.get("pattern_name")
-        
+
         # if no pattern detected need to be returned for fixed size splitting
         if not pattern_name:
             docs_not_split.append(doc)
-        
+
         else:
             for ch in art["chunks"]:
                 content = ch.pop("content", "") or ""
                 meta = {**base_meta, **ch}
                 meta["pattern_name"] = pattern_name
-            
+
                 # Combine very small chunks (like indices, if present)
-                if len(tokenizer.encode(content)) < 30: #roughly chosen considering the name of headers won't be long
+                if (
+                    len(tokenizer.encode(content)) < 30
+                ):  # roughly chosen considering the name of headers won't be long
                     index_chunks.append(Document(page_content=content, metadata=meta))
                 else:
                     chunk_docs.append(Document(page_content=content, metadata=meta))
-    
+
     # Add chunks in index_chunks as one chunk for each document
     index_groups: Dict[str, List[Document]] = defaultdict(list)
     for doc in index_chunks:
         key = doc.metadata.get("source")
-        index_groups[key].append(doc)  #type: ignore
+        index_groups[key].append(doc)  # type: ignore
 
     for docs in index_groups.values():
         merged_text = "\n".join(d.page_content for d in docs)
         merged_metadata = {**docs[0].metadata, **{"chunk_type": "index"}}
-        chunk_docs.insert(0, Document(page_content=merged_text, metadata=merged_metadata))
+        chunk_docs.insert(
+            0, Document(page_content=merged_text, metadata=merged_metadata)
+        )
 
     # Split via Recursivesplitter if chunk size > max_seq_length of embedder
     out_docs: List[Document] = []
 
-    _child_id: int = 0 # Add child id for collegare with parent/full articles
+    _child_id: int = 0  # Add child id for collegare with parent/full articles
     _child_id_lock = asyncio.Lock()
 
     async def _reserve_child_ids(n: int) -> int:
@@ -486,10 +518,10 @@ async def custom_chunking(
             start = _child_id
             _child_id += n
             return start
-        
+
     async def _maybe_split(doc: Document, **kwargs) -> List[Document]:
         # skip counting child id and return [] if doc only contains page_splitter text (line used to distinguish the pages)
-        page_splitter_text = pages_joining_str # joinging_str
+        page_splitter_text = pages_joining_str  # joinging_str
         if (page_splitter_text) and (doc.page_content in page_splitter_text):
             return []
 
@@ -499,17 +531,17 @@ async def custom_chunking(
         if len(ids) > max_embed_tokens:
             # split in thread
             split_doc = await asyncio.to_thread(text_splitter.split_documents, [doc])
-            
+
             # Reserve a global id range for these children
             base = await _reserve_child_ids(len(split_doc))
             i = 0
             for s in split_doc:
                 if (page_splitter_text) and (s.page_content in page_splitter_text):
                     continue
-                s.metadata.update({'child_id': base + i})
+                s.metadata.update({"child_id": base + i})
                 i += 1
             return [d for d in split_doc if d.metadata.get("child_id")]
-        
+
         # Reserve a global id range for these children
         base = await _reserve_child_ids(1)
         doc.metadata.update({"child_id": base})
@@ -519,50 +551,67 @@ async def custom_chunking(
     split_lists = await asyncio.gather(*[_maybe_split(d) for d in chunk_docs if d])
     for lst in split_lists:
         out_docs.extend(lst)
-    
+
     def merge_whole_articles(out_docs: List[Document]) -> List[Document]:
         """Merge docs sharing the same (azienda, header). Preserve input order."""
         # Group by (azienda, header)
         groups: Dict[Tuple[str, str], List[Document]] = defaultdict(list)
         for doc in out_docs:
             key = (doc.metadata.get("azienda"), doc.metadata.get("header"))
-            groups[key].append(doc)  #type: ignore
-        
+            groups[key].append(doc)  # type: ignore
+
         # Recreate large chunk docs with chunk ids
         merge_docs_by_key: List[Document] = []
         for i, docs in enumerate(groups.values()):
             merged_text = " ".join(d.page_content for d in docs)
-            start_index = min([d.metadata.get("start") for d in docs]) # type: ignore ("start" is an int)
-            end_index = max([d.metadata.get("end") for d in docs]) # type: ignore ("end" is an int)
-            merged_metadata = {**docs[0].metadata, **{"start": start_index, "end": end_index, "chunk_id": i}}
-            merge_docs_by_key.append(Document(page_content=merged_text, metadata=merged_metadata))
-        
+            start_index = min([d.metadata.get("start") for d in docs])  # type: ignore ("start" is an int)
+            end_index = max([d.metadata.get("end") for d in docs])  # type: ignore ("end" is an int)
+            merged_metadata = {
+                **docs[0].metadata,
+                **{"start": start_index, "end": end_index, "chunk_id": i},
+            }
+            merge_docs_by_key.append(
+                Document(page_content=merged_text, metadata=merged_metadata)
+            )
+
         return merge_docs_by_key
 
     async def merge_whole_articles_async(out_docs: List[Document]) -> List[Document]:
         """Non-blocking wrapper for merge_whole_articles."""
         return await asyncio.to_thread(merge_whole_articles, out_docs)
-    
+
     out_docs_whole = await merge_whole_articles_async(out_docs)
-    
+
     # Rebuild result aligned to the original order
     for doc in out_docs:
-        child_header = doc.metadata.get("header") # header for child
-        child_azienda = doc.metadata.get("azienda") # azienda for child
+        child_header = doc.metadata.get("header")  # header for child
+        child_azienda = doc.metadata.get("azienda")  # azienda for child
 
-        rel_merged_doc_chunk_id = [d.metadata.get("chunk_id") for d in out_docs_whole if (d.metadata.get("header") == child_header) and (d.metadata.get("azienda") == child_azienda)][0] # parent_id for child 
+        rel_merged_doc_chunk_id = [
+            d.metadata.get("chunk_id")
+            for d in out_docs_whole
+            if (d.metadata.get("header") == child_header)
+            and (d.metadata.get("azienda") == child_azienda)
+        ][
+            0
+        ]  # parent_id for child
         doc.metadata["chunk_id"] = doc.metadata.get("child_id")
         doc.metadata["parent_id"] = rel_merged_doc_chunk_id
 
-
-
-    last_parent_id = sorted([d.metadata.get("chunk_id", 0) for d in out_docs_whole], reverse=True)[0] if out_docs_whole else 0
-    last_child_id = sorted([d.metadata.get("chunk_id", 0) for d in out_docs], reverse=True)[0] if out_docs else 0
+    last_parent_id = (
+        sorted([d.metadata.get("chunk_id", 0) for d in out_docs_whole], reverse=True)[0]
+        if out_docs_whole
+        else 0
+    )
+    last_child_id = (
+        sorted([d.metadata.get("chunk_id", 0) for d in out_docs], reverse=True)[0]
+        if out_docs
+        else 0
+    )
     return _Output__custom_chunking(
-            whole_articles = out_docs_whole,
-            chunks = out_docs,
-            docs_not_split = docs_not_split,
-            last_parent_id = last_parent_id,
-            last_child_id = last_child_id
-        )
-    
+        whole_articles=out_docs_whole,
+        chunks=out_docs,
+        docs_not_split=docs_not_split,
+        last_parent_id=last_parent_id,
+        last_child_id=last_child_id,
+    )

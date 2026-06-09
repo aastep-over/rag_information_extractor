@@ -1,0 +1,610 @@
+{
+    "2kind srl": {
+        "BILANCI_E_UTILI": {
+            "output": {
+                "CapitaleSociale": {
+                    "capitale_sociale_euro": "25.000 (venticinquemila)"
+                },
+                "DataChiusuraEsercizio": {
+                    "data_chiusura_esercizio": "trentuno dicembre"
+                },
+                "PercentualeRiservaLegale": {
+                    "percentuale_utili": "5"
+                },
+                "TermineApprovazioneBilancio": {
+                    "termine_ordinario_giorni": "120",
+                    "termine_prorogato_giorni": "180"
+                },
+                "UtiliResidui": {
+                    "utili_residui": "ripartita fra i soci in proporzione delle rispettive quote di capitale, salvo che essi non decidano diversamente"
+                }
+            },
+            "retrieved_docs": {
+                "CapitaleSociale": {
+                    "parents": [],
+                    "children": [
+                        4,
+                        9,
+                        8,
+                        5,
+                        21,
+                        1,
+                        28,
+                        20
+                    ]
+                },
+                "DataChiusuraEsercizio": {
+                    "parents": [],
+                    "children": [
+                        1,
+                        0,
+                        2,
+                        8,
+                        21,
+                        20,
+                        4,
+                        15
+                    ]
+                },
+                "PercentualeRiservaLegale": {
+                    "parents": [],
+                    "children": [
+                        21,
+                        1,
+                        4,
+                        23,
+                        8,
+                        9,
+                        5,
+                        20
+                    ]
+                },
+                "TermineApprovazioneBilancio": {
+                    "parents": [],
+                    "children": [
+                        1,
+                        2,
+                        7,
+                        21,
+                        20,
+                        0,
+                        15,
+                        23
+                    ]
+                },
+                "UtiliResidui": {
+                    "parents": [],
+                    "children": [
+                        1,
+                        21,
+                        23,
+                        5,
+                        20,
+                        0,
+                        4,
+                        26
+                    ]
+                }
+            },
+            "re_ranked_docs": {
+                "CapitaleSociale": {
+                    "parents": [
+                        5,
+                        4
+                    ],
+                    "children": []
+                },
+                "DataChiusuraEsercizio": {
+                    "parents": [
+                        0,
+                        3
+                    ],
+                    "children": []
+                },
+                "PercentualeRiservaLegale": {
+                    "parents": [
+                        22,
+                        5
+                    ],
+                    "children": []
+                },
+                "TermineApprovazioneBilancio": {
+                    "parents": [
+                        9,
+                        0
+                    ],
+                    "children": []
+                },
+                "UtiliResidui": {
+                    "parents": [
+                        0,
+                        22
+                    ],
+                    "children": []
+                }
+            },
+            "retrieved_docs_texts": {
+                "CapitaleSociale": {
+                    "parents": [],
+                    "children": [
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.10.- L ... ce civile.",
+                        "Art.6.- Le ... da cedere.",
+                        "Art.7. - L ... I DEI SOCI",
+                        "Art.23.- G ... ONI FINALI",
+                        "Allegato \" ...  - OGGETTO",
+                        "locazione, ... ANZIAMENTI",
+                        "Art.21.- I ... IO E UTILI"
+                    ]
+                },
+                "DataChiusuraEsercizio": {
+                    "parents": [],
+                    "children": [
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.3.- La ... prorogata.",
+                        "Art.6.- Le ... da cedere.",
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.21.- I ... IO E UTILI",
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.11.- L ... ISTRAZIONE"
+                    ]
+                },
+                "PercentualeRiservaLegale": {
+                    "parents": [],
+                    "children": [
+                        "Art.23.- G ... ONI FINALI",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.27.- P ... nte M.U.I.",
+                        "Art.6.- Le ... da cedere.",
+                        "Art.10.- L ... ce civile.",
+                        "Art.7. - L ... I DEI SOCI",
+                        "Art.21.- I ... IO E UTILI"
+                    ]
+                },
+                "TermineApprovazioneBilancio": {
+                    "parents": [],
+                    "children": [
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.3.- La ... prorogata.",
+                        "Art.9.- L' ... dilazione.",
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.21.- I ... IO E UTILI",
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.11.- L ... ISTRAZIONE",
+                        "Art.27.- P ... nte M.U.I."
+                    ]
+                },
+                "UtiliResidui": {
+                    "parents": [],
+                    "children": [
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.27.- P ... nte M.U.I.",
+                        "Art.7. - L ... I DEI SOCI",
+                        "Art.21.- I ... IO E UTILI",
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.4 - La ... ecnologie,"
+                    ]
+                }
+            },
+            "re_ranked_docs_texts": {
+                "CapitaleSociale": {
+                    "parents": [
+                        "Art.5.- Il ...  cauzione.",
+                        "Art.4 - La ... ANZIAMENTI"
+                    ],
+                    "children": []
+                },
+                "DataChiusuraEsercizio": {
+                    "parents": [
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.3.- La ... prorogata."
+                    ],
+                    "children": []
+                },
+                "PercentualeRiservaLegale": {
+                    "parents": [
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.5.- Il ...  cauzione."
+                    ],
+                    "children": []
+                },
+                "TermineApprovazioneBilancio": {
+                    "parents": [
+                        "Art.9.- L' ... dilazione.",
+                        "Art.1.- E' ... ogni anno."
+                    ],
+                    "children": []
+                },
+                "UtiliResidui": {
+                    "parents": [
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.23.- G ... ONI FINALI"
+                    ],
+                    "children": []
+                }
+            },
+            "rag_qa": {
+                "CapitaleSociale": {
+                    "Q": "Qual è l’ammontare del capitale sociale della società? Nome della società: 2KIND SRL",
+                    "A": "Il capitale sociale è di euro 25.000 (venticinquemila)."
+                },
+                "DataChiusuraEsercizio": {
+                    "Q": "Qual è la data di chiusura dell’esercizio sociale? Nome della società: 2KIND SRL",
+                    "A": "L'esercizio sociale si chiude il trentuno dicembre di ogni anno."
+                },
+                "PercentualeRiservaLegale": {
+                    "Q": "Quale percentuale degli utili deve essere accantonata da destinare alla riserva legale? Nome della società: 2KIND SRL",
+                    "A": "Il cinque per cento (5%) degli utili netti sarà destinato alla riserva legale fino al raggiungimento dell'importo pari al venti per cento del capitale sociale."
+                },
+                "TermineApprovazioneBilancio": {
+                    "Q": "Entro quanti giorni dalla chiusura dell’esercizio deve essere approvato il bilancio normalmente? Qual è il termine prorogato in presenza di particolari esigenze? Nome della società: 2KIND SRL",
+                    "A": "Il bilancio deve essere approvato entro centoventi giorni dalla chiusura dell'esercizio sociale, oppure entro centottanta giorni in caso di redazione del bilancio consolidato o particolari esigenze relative alla struttura ed all'oggetto della società."
+                },
+                "UtiliResidui": {
+                    "Q": "Cosa si fanno degli utili residui secondo lo statuto? Nome della società: 2KIND SRL",
+                    "A": "La rimanenza è ripartita fra i soci in proporzione delle rispettive quote di capitale, salvo che essi non decidano diversamente."
+                }
+            },
+            "run_times": {
+                "CapitaleSociale": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "DataChiusuraEsercizio": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "PercentualeRiservaLegale": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "TermineApprovazioneBilancio": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "UtiliResidui": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                }
+            },
+            "optimized_query": {
+                "CapitaleSociale": {
+                    "query": "ammontare capitale sociale",
+                    "azienda": "2kind srl"
+                },
+                "DataChiusuraEsercizio": {
+                    "query": "data chiusura esercizio sociale",
+                    "azienda": "2kind srl"
+                },
+                "PercentualeRiservaLegale": {
+                    "query": "percentuale utili accantonamento riserva legale",
+                    "azienda": "2kind srl"
+                },
+                "TermineApprovazioneBilancio": {
+                    "query": "termini approvazione bilancio chiusura esercizio proroga",
+                    "azienda": "2kind srl"
+                },
+                "UtiliResidui": {
+                    "query": "destinazione utili residui statuto",
+                    "azienda": "2kind srl"
+                }
+            }
+        },
+        "COMPENSO_DEGLI_AMMINISTRATORI": {
+            "output": {
+                "IndennitaAnnuale": {
+                    "spetta_indennita_da_soci": "Sì",
+                    "misura_indennita": ""
+                },
+                "IndennitaCessazione": {
+                    "spetta_indennita": ""
+                },
+                "Rimborso": {
+                    "spetta_rimborso": "Sì",
+                    "spese_incluse": ""
+                }
+            },
+            "retrieved_docs": {
+                "IndennitaAnnuale": {
+                    "parents": [],
+                    "children": [
+                        16,
+                        1,
+                        14,
+                        20,
+                        19,
+                        10,
+                        13,
+                        18
+                    ]
+                },
+                "IndennitaCessazione": {
+                    "parents": [],
+                    "children": [
+                        16,
+                        1,
+                        12,
+                        14,
+                        21,
+                        10,
+                        19,
+                        20
+                    ]
+                },
+                "Rimborso": {
+                    "parents": [],
+                    "children": [
+                        16,
+                        1,
+                        20,
+                        5,
+                        25,
+                        19,
+                        23,
+                        12
+                    ]
+                }
+            },
+            "re_ranked_docs": {
+                "IndennitaAnnuale": {
+                    "parents": [
+                        19,
+                        12
+                    ],
+                    "children": []
+                },
+                "IndennitaCessazione": {
+                    "parents": [
+                        13,
+                        19
+                    ],
+                    "children": []
+                },
+                "Rimborso": {
+                    "parents": [
+                        19,
+                        20
+                    ],
+                    "children": []
+                }
+            },
+            "retrieved_docs_texts": {
+                "IndennitaAnnuale": {
+                    "parents": [],
+                    "children": [
+                        "Art.19.– A ...  dai\nsoci.",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.16. -  ... NISTRATORI",
+                        "Art.21.- I ... IO E UTILI",
+                        "Art.20.- G ...  CONTROLLO",
+                        "Art.15. -  ... in\ncarica.",
+                        "Art.12.- L ... ISTRAZIONE",
+                        "Art.18.- L ... la delega."
+                    ]
+                },
+                "IndennitaCessazione": {
+                    "parents": [],
+                    "children": [
+                        "Art.19.– A ...  dai\nsoci.",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.13.– I ... ce civile.",
+                        "Art.16. -  ... NISTRATORI",
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.15. -  ... in\ncarica.",
+                        "Art.20.- G ...  CONTROLLO",
+                        "Art.21.- I ... IO E UTILI"
+                    ]
+                },
+                "Rimborso": {
+                    "parents": [],
+                    "children": [
+                        "Art.19.– A ...  dai\nsoci.",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.21.- I ... IO E UTILI",
+                        "Art.7. - L ... I DEI SOCI",
+                        "Art.25.- P ... o sociale.",
+                        "Art.20.- G ...  CONTROLLO",
+                        "Art.27.- P ... nte M.U.I.",
+                        "Art.13.– I ... ce civile."
+                    ]
+                }
+            },
+            "re_ranked_docs_texts": {
+                "IndennitaAnnuale": {
+                    "parents": [
+                        "Art.19.– A ...  dai\nsoci.",
+                        "Art.12.- L ... ISTRAZIONE"
+                    ],
+                    "children": []
+                },
+                "IndennitaCessazione": {
+                    "parents": [
+                        "Art.13.– I ... ce civile.",
+                        "Art.19.– A ...  dai\nsoci."
+                    ],
+                    "children": []
+                },
+                "Rimborso": {
+                    "parents": [
+                        "Art.19.– A ...  dai\nsoci.",
+                        "Art.20.- G ...  CONTROLLO"
+                    ],
+                    "children": []
+                }
+            },
+            "rag_qa": {
+                "IndennitaAnnuale": {
+                    "Q": "I soci possono assegnare un compenso agli amministratori? In che misura? Nome della società: 2KIND SRL",
+                    "A": "Agli amministratori spetta un compenso eventuale determinato dai soci."
+                },
+                "IndennitaCessazione": {
+                    "Q": "I soci possono accantonare una somma a titolo di indennità per gli amministratori in caso di cessazione della carica? Nome della società: 2KIND SRL",
+                    "A": "Non ho trovato la risposta nei documenti forniti."
+                },
+                "Rimborso": {
+                    "Q": "Agli amministratori spetta il rimborso delle spese? Quali spese sono incluse? Nome della società: 2KIND SRL",
+                    "A": "Sì, agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio."
+                }
+            },
+            "run_times": {
+                "IndennitaAnnuale": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "IndennitaCessazione": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                },
+                "Rimborso": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                }
+            },
+            "optimized_query": {
+                "IndennitaAnnuale": {
+                    "query": "assegnazione compenso amministratori misura",
+                    "azienda": "2kind srl"
+                },
+                "IndennitaCessazione": {
+                    "query": "accantonamento indennità amministratori cessazione carica",
+                    "azienda": "2kind srl"
+                },
+                "Rimborso": {
+                    "query": "rimborso spese amministratori tipologia spese",
+                    "azienda": "2kind srl"
+                }
+            }
+        },
+        "INFO_GENERALI": {
+            "output": {
+                "Durata": {
+                    "durata_dell_azienda": "trentuno dicembre duemilasessanta"
+                }
+            },
+            "retrieved_docs": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        2,
+                        1,
+                        0,
+                        15,
+                        7,
+                        21,
+                        8,
+                        23
+                    ]
+                }
+            },
+            "re_ranked_docs": {
+                "Durata": {
+                    "parents": [
+                        0,
+                        3
+                    ],
+                    "children": []
+                }
+            },
+            "retrieved_docs_texts": {
+                "Durata": {
+                    "parents": [],
+                    "children": [
+                        "Art.3.- La ... prorogata.",
+                        "Allegato \" ...  - OGGETTO",
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.11.- L ... ISTRAZIONE",
+                        "Art.9.- L' ... dilazione.",
+                        "Art.23.- G ... ONI FINALI",
+                        "Art.6.- Le ... da cedere.",
+                        "Art.27.- P ... nte M.U.I."
+                    ]
+                }
+            },
+            "re_ranked_docs_texts": {
+                "Durata": {
+                    "parents": [
+                        "Art.1.- E' ... ogni anno.",
+                        "Art.3.- La ... prorogata."
+                    ],
+                    "children": []
+                }
+            },
+            "rag_qa": {
+                "Durata": {
+                    "Q": "Qual è la durata della società (fino a quale data)? Nome della società: 2KIND SRL",
+                    "A": "La durata della società è fissata fino al trentuno dicembre duemilasessanta."
+                }
+            },
+            "run_times": {
+                "Durata": {
+                    "analyze_query": "8.815 s",
+                    "retrieve": "0.178 s",
+                    "pruning": "0.00 s",
+                    "generate": "16.235 s",
+                    "re_ranking": "13.635 s",
+                    "faster_retrieve_and_rerank": "0.00 s",
+                    "overall": "56.865 s",
+                    "extract_sub_module": "17.967 s"
+                }
+            },
+            "optimized_query": {
+                "Durata": {
+                    "query": "durata società data scadenza",
+                    "azienda": "2kind srl"
+                }
+            }
+        }
+    }
+}

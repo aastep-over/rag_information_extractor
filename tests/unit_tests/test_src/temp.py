@@ -1,0 +1,5 @@
+from rag_info_extractor.extract_info import load_info_to_extract_classes
+
+info_to_extract_classes = load_info_to_extract_classes()
+
+print(info_to_extract_classes)

@@ -35,14 +35,14 @@ from rag_info_extractor.rag_pipeline import RAGPipeline
 from rag_info_extractor.utils.llm_connector import OllamaLLM
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 ## ---------------------------------------------- ******* ------------------------------------------
 ## ---------------------------------------------- HELPERS ------------------------------------------
 
 # Define Extracter Prompt and LLM
 
-EXTRACTOR_SYSTEM_PROMPT = textwrap.dedent(
-    """\
+EXTRACTOR_SYSTEM_PROMPT = textwrap.dedent("""\
 SYSTEM:
 
 Sei un estrattore di informazioni. Il tuo unico compito è compilare un oggetto JSON.
@@ -206,9 +206,7 @@ class ExtractInfo:
 
         self.ori_contexts = {}  ###
         self.re_ranked_contexts = {}  ###
-        self.rag_qa = (
-            {}
-        )  ### # Stores question and answer by the rag pipeline for each submodule
+        self.rag_qa = {}### # Stores question and answer by the rag pipeline for each submodule
         self.run_times = {}  ### # Store run time for each submodule
         self.ori_contexts_texts = {}  ###
         self.re_ranked_contexts_texts = {}  ###
@@ -267,15 +265,16 @@ class ExtractInfo:
 
             logger.debug("Nome Azienda in : %s", self.nome_azienda.upper())  ###
             q = m.question + f" Nome della società: {self.nome_azienda.upper()}"
-            answer = self.extractor_graph.get_response(q)
+            # answer = self.extractor_graph.get_response(q)
+            answer_state = self.extractor_graph.get_response(q)
             time_consumed = self.extractor_graph.latency
 
             t1 = time.time()
 
             # structure answer only if llm found the response
-            if answer not in ("", "Non ho trovato la risposta nei documenti forniti"):
+            if answer_state["answer"] not in ("", "Non ho trovato la risposta nei documenti forniti"):
                 formatted_output = self.extract_sub_module(
-                    m.question, answer, m
+                    m.question, answer_state["answer"], m
                 ).model_dump()
             else:
                 formatted_output = {}
@@ -290,21 +289,25 @@ class ExtractInfo:
             logger.debug("Module: %s", name_sub_module)  ###
             logger.debug("Module: %s", name_sub_module)  ###
             logger.debug("Question: \t %s", q)  ###
-            logger.debug("Answer: \t %s", answer)  ###
+            logger.debug("Answer: \t %s", answer_state["answer"])  ###
 
             ## Save retrieved contexts and optimized query for testing
             self.optimized_query[name_sub_module] = (
-                self.extractor_graph.optimized_query
+                # self.extractor_graph.optimized_query
+                answer_state["query"].model_dump()
             )  ###
             self.ori_contexts[name_sub_module] = (
-                self.extractor_graph.retrieved_docs_ids
+                # self.extractor_graph.retrieved_docs_ids
+                answer_state["retrieved_docs_ids"]
             )  ###
             self.ori_contexts_texts[name_sub_module] = (
-                self.extractor_graph.retrieved_docs_texts
+                # self.extractor_graph.retrieved_docs_texts
+                answer_state["retrieved_docs_texts"]
             )  ###
             try:
                 self.re_ranked_contexts[name_sub_module] = (
-                    self.extractor_graph.re_ranked_docs_ids
+                    # self.extractor_graph.re_ranked_docs_ids
+                    answer_state["re_ranked_docs_ids"]
                 )  ###
             except AttributeError as e:
                 logger.error("re_ranked_docs_ids not found")
@@ -312,14 +315,15 @@ class ExtractInfo:
                 self.re_ranked_contexts[name_sub_module] = {}  # []
             try:
                 self.re_ranked_contexts_texts[name_sub_module] = (
-                    self.extractor_graph.re_ranked_docs_texts
+                    # self.extractor_graph.re_ranked_docs_texts
+                    answer_state["re_ranked_docs_texts"]
                 )  ###
             except AttributeError as e:
                 logger.error("re_ranked_docs_texts not found")
                 logger.exception(e)
                 self.re_ranked_contexts_texts[name_sub_module] = {}  ###
 
-            self.rag_qa[name_sub_module] = {"Q": q, "A": answer}  ###
+            self.rag_qa[name_sub_module] = {"Q": q, "A": answer_state["answer"]}  ###
 
             time_consumed["overall"] = (
                 f"{float(time_consumed.get('overall', '0 s')[:-2]) + float(time_consumed.get('extract_sub_module', '0 s')[:-2])} s"  ###
@@ -392,14 +396,15 @@ class ExtractInfo:
             self.extractor_graph.reset_latency()
             logger.debug("Nome Azienda in : %s", self.nome_azienda.upper())  ###
             q = m.question + f" Nome della società: {self.nome_azienda.upper()}"
-            answer = await self.extractor_graph.aget_response(q)
+            # answer = await self.extractor_graph.aget_response(q)
+            answer_state = await self.extractor_graph.aget_response(q)
             time_consumed = self.extractor_graph.latency
 
             t1 = time.perf_counter()
 
             # structure answer only if llm found the response
-            if answer not in ("", "Non ho trovato la risposta nei documenti forniti"):
-                formatted_output = await self.aextract_sub_module(m.question, answer, m)
+            if answer_state["answer"] not in ("", "Non ho trovato la risposta nei documenti forniti"):
+                formatted_output = await self.aextract_sub_module(m.question, answer_state["answer"], m)
                 formatted_output = formatted_output.model_dump()
             else:
                 formatted_output = {}
@@ -414,21 +419,25 @@ class ExtractInfo:
             logger.debug("Module: %s", name_sub_module)  ###
             logger.debug("Question: \t %s", q)  ###
             # logger.debug("INPUT TO RAG: %s", q_new
-            logger.debug("Answer: \t %s", answer)  ###
+            logger.debug("Answer: \t %s", answer_state["answer"])  ###
 
             ## Save retrieved contexts and optimized query for testing
             self.optimized_query[name_sub_module] = (
-                self.extractor_graph.optimized_query
+                # self.extractor_graph.optimized_query
+                answer_state["query"].model_dump()
             )  ###
             self.ori_contexts[name_sub_module] = (
-                self.extractor_graph.retrieved_docs_ids
+                # self.extractor_graph.retrieved_docs_ids
+                answer_state["retrieved_docs_ids"]
             )  ###
             self.ori_contexts_texts[name_sub_module] = (
-                self.extractor_graph.retrieved_docs_texts
+                # self.extractor_graph.retrieved_docs_texts
+                answer_state["retrieved_docs_texts"]
             )  ###
             try:
                 self.re_ranked_contexts[name_sub_module] = (
-                    self.extractor_graph.re_ranked_docs_ids
+                    # self.extractor_graph.re_ranked_docs_ids
+                    answer_state["re_ranked_docs_ids"]
                 )  ###
             except AttributeError as e:
                 logger.error("re_ranked_docs_ids not found")
@@ -436,14 +445,15 @@ class ExtractInfo:
                 self.re_ranked_contexts[name_sub_module] = {}  # []
             try:
                 self.re_ranked_contexts_texts[name_sub_module] = (
-                    self.extractor_graph.re_ranked_docs_texts
+                    # self.extractor_graph.re_ranked_docs_texts
+                    answer_state["re_ranked_docs_texts"]
                 )  ###
             except AttributeError as e:
                 logger.error("re_ranked_docs_texts not found")
                 logger.exception(e)
                 self.re_ranked_contexts_texts[name_sub_module] = {}  ###
 
-            self.rag_qa[name_sub_module] = {"Q": q, "A": answer}  ###
+            self.rag_qa[name_sub_module] = {"Q": q, "A": answer_state["answer"]}  ###
 
             time_consumed["overall"] = (
                 f"{float(time_consumed.get('overall', '0 s')[:-2]) + float(time_consumed.get('extract_sub_module', '0 s')[:-2])} s"  ###
@@ -538,6 +548,14 @@ def extract_and_save_all_info(
         json.dump(info_extracted, f, indent=4, ensure_ascii=False)
 
 
+def load_info_to_extract_classes():
+    info_schema_classes = load_classes_from_path(
+        str(PROJECT_ROOT / "src/rag_info_extractor/info_schema/schemas")
+    )  # loader.exec_module(module) blocks from using 'load_classes_from_path' async
+    info_to_extract_classes = group_classes_by_module(info_schema_classes)
+
+    return info_to_extract_classes
+
 async def aextract_and_save_all_info(
     rag_pipeline: RAGPipeline,
     nome_delle_aziende: List[Tuple[str, str]],
@@ -546,10 +564,7 @@ async def aextract_and_save_all_info(
     use_google_api: bool = False,
 ) -> None:
 
-    info_schema_classes = load_classes_from_path(
-        "../src/rag_info_extractor/info_schema/schemas"
-    )  # loader.exec_module(module) blocks from using 'load_classes_from_path' async
-    info_to_extract_classes = group_classes_by_module(info_schema_classes)
+    info_to_extract_classes = load_info_to_extract_classes()
     os.makedirs(save_dir, exist_ok=True)
     # Create last_runs dir
     last_runs_dir = Path(f"{save_dir}/last_runs")
@@ -637,8 +652,4 @@ async def aextract_and_save_all_info(
         json.dump(combined_data, f, indent=4, ensure_ascii=False)
 
 
-# TODO: Fix async pipeline state handling for per-query metadata.
-# Currently, fields such as `optimized_queries`, `re_ranked_docs`,
-# and `retrieved_docs` are being overwritten/shared across async calls,
-# causing all queries/modules to reference the results of the last completed task
-# instead of maintaining isolated state per question/query/module.
+# TODO: Fix timing of functions in rag pipeline.(both sync and async)

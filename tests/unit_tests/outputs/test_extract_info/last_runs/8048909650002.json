@@ -1,0 +1,500 @@
+{
+    "BILANCI_E_UTILI": {
+        "output": {
+            "UtiliResidui": {
+                "utili_residui": "ripartita fra i soci in proporzione delle rispettive quote di capitale, salvo che essi non decidano diversamente"
+            },
+            "DataChiusuraEsercizio": {
+                "data_chiusura_esercizio": "trentuno dicembre"
+            },
+            "CapitaleSociale": {
+                "capitale_sociale_euro": "25.000 (venticinquemila)"
+            },
+            "TermineApprovazioneBilancio": {
+                "termine_ordinario_giorni": "120",
+                "termine_prorogato_giorni": "180"
+            },
+            "PercentualeRiservaLegale": {
+                "percentuale_utili": "5"
+            }
+        },
+        "retrieved_docs": {
+            "UtiliResidui": [
+                1,
+                21,
+                23,
+                5,
+                20,
+                0,
+                4,
+                26
+            ],
+            "DataChiusuraEsercizio": [
+                1,
+                0,
+                2,
+                8,
+                21,
+                20,
+                4,
+                15
+            ],
+            "CapitaleSociale": [
+                4,
+                9,
+                8,
+                5,
+                21,
+                1,
+                28,
+                20
+            ],
+            "TermineApprovazioneBilancio": [
+                1,
+                2,
+                7,
+                21,
+                20,
+                0,
+                15,
+                23
+            ],
+            "PercentualeRiservaLegale": [
+                21,
+                1,
+                4,
+                23,
+                8,
+                9,
+                5,
+                20
+            ]
+        },
+        "re_ranked_docs": {
+            "UtiliResidui": [
+                0,
+                22
+            ],
+            "DataChiusuraEsercizio": [
+                0,
+                3
+            ],
+            "CapitaleSociale": [
+                5,
+                4
+            ],
+            "TermineApprovazioneBilancio": [
+                9,
+                0
+            ],
+            "PercentualeRiservaLegale": [
+                22,
+                5
+            ]
+        },
+        "retrieved_docs_texts": {
+            "UtiliResidui": [
+                "Allegato \" ...  - OGGETTO",
+                "Art.23.- G ... ONI FINALI",
+                "Art.27.- P ... nte M.U.I.",
+                "Art.7. - L ... I DEI SOCI",
+                "Art.21.- I ... IO E UTILI",
+                "Art.1.- E' ... ogni anno.",
+                "Art.5.- Il ...  cauzione.",
+                "Art.4 - La ... ecnologie,"
+            ],
+            "DataChiusuraEsercizio": [
+                "Allegato \" ...  - OGGETTO",
+                "Art.1.- E' ... ogni anno.",
+                "Art.3.- La ... prorogata.",
+                "Art.6.- Le ... da cedere.",
+                "Art.23.- G ... ONI FINALI",
+                "Art.21.- I ... IO E UTILI",
+                "Art.5.- Il ...  cauzione.",
+                "Art.11.- L ... ISTRAZIONE"
+            ],
+            "CapitaleSociale": [
+                "Art.5.- Il ...  cauzione.",
+                "Art.10.- L ... ce civile.",
+                "Art.6.- Le ... da cedere.",
+                "Art.7. - L ... I DEI SOCI",
+                "Art.23.- G ... ONI FINALI",
+                "Allegato \" ...  - OGGETTO",
+                "locazione, ... ANZIAMENTI",
+                "Art.21.- I ... IO E UTILI"
+            ],
+            "TermineApprovazioneBilancio": [
+                "Allegato \" ...  - OGGETTO",
+                "Art.3.- La ... prorogata.",
+                "Art.9.- L' ... dilazione.",
+                "Art.23.- G ... ONI FINALI",
+                "Art.21.- I ... IO E UTILI",
+                "Art.1.- E' ... ogni anno.",
+                "Art.11.- L ... ISTRAZIONE",
+                "Art.27.- P ... nte M.U.I."
+            ],
+            "PercentualeRiservaLegale": [
+                "Art.23.- G ... ONI FINALI",
+                "Allegato \" ...  - OGGETTO",
+                "Art.5.- Il ...  cauzione.",
+                "Art.27.- P ... nte M.U.I.",
+                "Art.6.- Le ... da cedere.",
+                "Art.10.- L ... ce civile.",
+                "Art.7. - L ... I DEI SOCI",
+                "Art.21.- I ... IO E UTILI"
+            ]
+        },
+        "re_ranked_docs_texts": {
+            "UtiliResidui": [
+                "Art.1.- E' ... ogni anno.",
+                "Art.23.- G ... ONI FINALI"
+            ],
+            "DataChiusuraEsercizio": [
+                "Art.1.- E' ... ogni anno.",
+                "Art.3.- La ... prorogata."
+            ],
+            "CapitaleSociale": [
+                "Art.5.- Il ...  cauzione.",
+                "Art.4 - La ... ANZIAMENTI"
+            ],
+            "TermineApprovazioneBilancio": [
+                "Art.9.- L' ... dilazione.",
+                "Art.1.- E' ... ogni anno."
+            ],
+            "PercentualeRiservaLegale": [
+                "Art.23.- G ... ONI FINALI",
+                "Art.5.- Il ...  cauzione."
+            ]
+        },
+        "rag_qa": {
+            "UtiliResidui": {
+                "Q": "Cosa si fanno degli utili residui secondo lo statuto? Nome della società: 8048909650002",
+                "A": "La rimanenza è ripartita fra i soci in proporzione delle rispettive quote di capitale, salvo che essi non decidano diversamente."
+            },
+            "DataChiusuraEsercizio": {
+                "Q": "Qual è la data di chiusura dell’esercizio sociale? Nome della società: 8048909650002",
+                "A": "L'esercizio sociale si chiude il trentuno dicembre di ogni anno."
+            },
+            "CapitaleSociale": {
+                "Q": "Qual è l’ammontare del capitale sociale della società? Nome della società: 8048909650002",
+                "A": "Il capitale sociale è di euro 25.000 (venticinquemila)."
+            },
+            "TermineApprovazioneBilancio": {
+                "Q": "Entro quanti giorni dalla chiusura dell’esercizio deve essere approvato il bilancio normalmente? Qual è il termine prorogato in presenza di particolari esigenze? Nome della società: 8048909650002",
+                "A": "Il bilancio deve essere approvato entro centoventi giorni dalla chiusura dell'esercizio sociale, oppure entro centottanta giorni in caso di redazione del bilancio consolidato o particolari esigenze relative alla struttura ed all'oggetto della società."
+            },
+            "PercentualeRiservaLegale": {
+                "Q": "Quale percentuale degli utili deve essere accantonata da destinare alla riserva legale? Nome della società: 8048909650002",
+                "A": "Il cinque per cento (5%) degli utili netti sarà destinato alla riserva legale fino al raggiungimento dell'importo pari al venti per cento del capitale sociale."
+            }
+        },
+        "run_times": {
+            "UtiliResidui": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "DataChiusuraEsercizio": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "CapitaleSociale": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "TermineApprovazioneBilancio": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "PercentualeRiservaLegale": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            }
+        },
+        "optimized_query": {
+            "UtiliResidui": {
+                "query": "destinazione utili residui statuto",
+                "azienda": "2kind srl"
+            },
+            "DataChiusuraEsercizio": {
+                "query": "data chiusura esercizio sociale",
+                "azienda": "2kind srl"
+            },
+            "CapitaleSociale": {
+                "query": "ammontare capitale sociale",
+                "azienda": "2kind srl"
+            },
+            "TermineApprovazioneBilancio": {
+                "query": "termini approvazione bilancio chiusura esercizio proroga",
+                "azienda": "2kind srl"
+            },
+            "PercentualeRiservaLegale": {
+                "query": "percentuale utili accantonamento riserva legale",
+                "azienda": "2kind srl"
+            }
+        }
+    },
+    "COMPENSO_DEGLI_AMMINISTRATORI": {
+        "output": {
+            "IndennitaCessazione": {
+                "spetta_indennita": ""
+            },
+            "IndennitaAnnuale": {
+                "spetta_indennita_da_soci": "Sì",
+                "misura_indennita": ""
+            },
+            "Rimborso": {
+                "spetta_rimborso": "Sì",
+                "spese_incluse": ""
+            }
+        },
+        "retrieved_docs": {
+            "IndennitaCessazione": [
+                16,
+                1,
+                12,
+                14,
+                21,
+                10,
+                19,
+                20
+            ],
+            "IndennitaAnnuale": [
+                16,
+                1,
+                14,
+                20,
+                19,
+                10,
+                13,
+                18
+            ],
+            "Rimborso": [
+                16,
+                1,
+                20,
+                5,
+                25,
+                19,
+                23,
+                12
+            ]
+        },
+        "re_ranked_docs": {
+            "IndennitaCessazione": [
+                13,
+                19
+            ],
+            "IndennitaAnnuale": [
+                19,
+                12
+            ],
+            "Rimborso": [
+                19,
+                20
+            ]
+        },
+        "retrieved_docs_texts": {
+            "IndennitaCessazione": [
+                "Art.19.– A ...  dai\nsoci.",
+                "Allegato \" ...  - OGGETTO",
+                "Art.13.– I ... ce civile.",
+                "Art.16. -  ... NISTRATORI",
+                "Art.23.- G ... ONI FINALI",
+                "Art.15. -  ... in\ncarica.",
+                "Art.20.- G ...  CONTROLLO",
+                "Art.21.- I ... IO E UTILI"
+            ],
+            "IndennitaAnnuale": [
+                "Art.19.– A ...  dai\nsoci.",
+                "Allegato \" ...  - OGGETTO",
+                "Art.16. -  ... NISTRATORI",
+                "Art.21.- I ... IO E UTILI",
+                "Art.20.- G ...  CONTROLLO",
+                "Art.15. -  ... in\ncarica.",
+                "Art.12.- L ... ISTRAZIONE",
+                "Art.18.- L ... la delega."
+            ],
+            "Rimborso": [
+                "Art.19.– A ...  dai\nsoci.",
+                "Allegato \" ...  - OGGETTO",
+                "Art.21.- I ... IO E UTILI",
+                "Art.7. - L ... I DEI SOCI",
+                "Art.25.- P ... o sociale.",
+                "Art.20.- G ...  CONTROLLO",
+                "Art.27.- P ... nte M.U.I.",
+                "Art.13.– I ... ce civile."
+            ]
+        },
+        "re_ranked_docs_texts": {
+            "IndennitaCessazione": [
+                "Art.13.– I ... ce civile.",
+                "Art.19.– A ...  dai\nsoci."
+            ],
+            "IndennitaAnnuale": [
+                "Art.19.– A ...  dai\nsoci.",
+                "Art.12.- L ... ISTRAZIONE"
+            ],
+            "Rimborso": [
+                "Art.19.– A ...  dai\nsoci.",
+                "Art.20.- G ...  CONTROLLO"
+            ]
+        },
+        "rag_qa": {
+            "IndennitaCessazione": {
+                "Q": "I soci possono accantonare una somma a titolo di indennità per gli amministratori in caso di cessazione della carica? Nome della società: 8048909650002",
+                "A": "Non ho trovato la risposta nei documenti forniti."
+            },
+            "IndennitaAnnuale": {
+                "Q": "I soci possono assegnare un compenso agli amministratori? In che misura? Nome della società: 8048909650002",
+                "A": "Agli amministratori spetta un compenso eventuale determinato dai soci."
+            },
+            "Rimborso": {
+                "Q": "Agli amministratori spetta il rimborso delle spese? Quali spese sono incluse? Nome della società: 8048909650002",
+                "A": "Sì, agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio."
+            }
+        },
+        "run_times": {
+            "IndennitaCessazione": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "IndennitaAnnuale": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            },
+            "Rimborso": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            }
+        },
+        "optimized_query": {
+            "IndennitaCessazione": {
+                "query": "accantonamento indennità amministratori cessazione carica",
+                "azienda": "2kind srl"
+            },
+            "IndennitaAnnuale": {
+                "query": "assegnazione compenso amministratori misura",
+                "azienda": "2kind srl"
+            },
+            "Rimborso": {
+                "query": "rimborso spese amministratori tipologia spese",
+                "azienda": "2kind srl"
+            }
+        }
+    },
+    "INFO_GENERALI": {
+        "output": {
+            "Durata": {
+                "durata_dell_azienda": "trentuno dicembre duemilasessanta"
+            }
+        },
+        "retrieved_docs": {
+            "Durata": [
+                2,
+                1,
+                0,
+                15,
+                7,
+                21,
+                8,
+                23
+            ]
+        },
+        "re_ranked_docs": {
+            "Durata": [
+                0,
+                3
+            ]
+        },
+        "retrieved_docs_texts": {
+            "Durata": [
+                "Art.3.- La ... prorogata.",
+                "Allegato \" ...  - OGGETTO",
+                "Art.1.- E' ... ogni anno.",
+                "Art.11.- L ... ISTRAZIONE",
+                "Art.9.- L' ... dilazione.",
+                "Art.23.- G ... ONI FINALI",
+                "Art.6.- Le ... da cedere.",
+                "Art.27.- P ... nte M.U.I."
+            ]
+        },
+        "re_ranked_docs_texts": {
+            "Durata": [
+                "Art.1.- E' ... ogni anno.",
+                "Art.3.- La ... prorogata."
+            ]
+        },
+        "rag_qa": {
+            "Durata": {
+                "Q": "Qual è la durata della società (fino a quale data)? Nome della società: 8048909650002",
+                "A": "La durata della società è fissata fino al trentuno dicembre duemilasessanta."
+            }
+        },
+        "run_times": {
+            "Durata": {
+                "analyze_query": "3.008 s",
+                "retrieve": "0.000 s",
+                "pruning": "0.00 s",
+                "generate": "4.004 s",
+                "re_ranking": "3.000 s",
+                "faster_retrieve_and_rerank": "0.00 s",
+                "overall": "283.435 s",
+                "extract_sub_module": "80.259 s"
+            }
+        },
+        "optimized_query": {
+            "Durata": {
+                "query": "durata società data scadenza",
+                "azienda": "2kind srl"
+            }
+        }
+    }
+}

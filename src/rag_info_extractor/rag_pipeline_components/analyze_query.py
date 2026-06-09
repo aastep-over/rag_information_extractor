@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# GEMINI API prova
+# GEMINI API 
 from google import genai
 from google.genai import types
 
@@ -332,5 +332,3 @@ async def aanalyze_query(
 
     return response
 
-
-# TODO: Adjust system prompts because the output json contains fields like description so pydantic can't validate

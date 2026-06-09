@@ -8,9 +8,7 @@ import os
 import time
 from pathlib import Path
 
-import yaml
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 from rag_info_extractor.rag_pipeline import RAGPipeline
 from rag_info_extractor.utils.common_logging import configure_logging
 from rag_info_extractor.utils.embedder import HFEmbedder
@@ -69,7 +67,7 @@ def main():
     )
 
     logger.info(
-        f'Logging for {"-"*30} rag_information_extractor/scripts/rag_pipeline_components.py'
+        f'Logging for {"-"*30} rag_information_extractor/src/rag_info_extractor/rag_pipeline.py'
     )  ###
     logger.info(f"LLM model used: {LLM_MODEL}")
 
@@ -122,14 +120,18 @@ def main():
     # USER_QUERY = "I soci possono assegnare un compenso agli amministratori? In che misura? QUERY: compenso amministratori limiti massimi e criteri di determinazione indennità Nome della società: 2kind srl"
     logger.info("Running query...")  ###
     if RUN_ASYNC:
-        ai_response = asyncio.run(rag_obj.aget_response(query=USER_QUERY))
+        # ai_response = asyncio.run(rag_obj.aget_response(query=USER_QUERY))
+        ai_response_state = asyncio.run(rag_obj.aget_response(query=USER_QUERY))
     else:
-        ai_response = rag_obj.get_response(query=USER_QUERY)
+        # ai_response = rag_obj.get_response(query=USER_QUERY)
+        ai_response_state = rag_obj.get_response(query=USER_QUERY)
 
+    # Check if all 
     # 7. Save outputs to output_temp.txt
     def write_outputs_to_file():
         # Obtain retrieved chunks texts
-        retrieved_docs_ids = rag_obj.retrieved_docs_ids
+        # retrieved_docs_ids = rag_obj.retrieved_docs_ids
+        retrieved_docs_ids = ai_response_state['retrieved_docs_ids']
         retrieved_vs_chunk_ids = [
             i
             for i, m in enumerate(vector_store.get().get("metadatas", []))
@@ -150,7 +152,8 @@ def main():
                 retrieved_ds_chunks[i] = f.read()
 
         # Obtain re_ranked_chunks
-        re_ranked_docs_ids = rag_obj.re_ranked_docs_ids
+        # re_ranked_docs_ids = rag_obj.re_ranked_docs_ids
+        re_ranked_docs_ids = ai_response_state['re_ranked_docs_ids']
         re_ranked_vs_chunk_ids = [
             i
             for i, m in enumerate(vector_store.get().get("metadatas", []))
@@ -171,12 +174,13 @@ def main():
                 re_ranked_ds_chunks[i] = f.read()
 
         # Store contexts/query in output_temp.txt
-        with open("output_temp", "w", encoding="utf-8") as f:
+        with open("output_temp.txt", "w", encoding="utf-8") as f:
             f.write(f"## OUTPUT FOR: rag_pipeline_components.py \n{RUN_TIME}\n")
             f.write(f"Async: {RUN_ASYNC}\n\n")
             f.write(f"USER QUERY: {USER_QUERY}\n\n")
-            f.write(f"Optimied Query: {rag_obj.optimized_query}\n\n")
-            f.write(f"LLM ANSWER: {ai_response}\n\n")
+            f.write(f"Optimied Query: {ai_response_state['query'].model_dump_json()}\n\n")
+            f.write(f"LLM ANSWER: {ai_response_state['answer']}\n\n")
+            f.write(f"Latency: {rag_obj.latency}\n\n")
 
             f.write(f"\n{"x"*100}\n")
 
@@ -215,8 +219,8 @@ def main():
 if __name__ == "__main__":
     t0 = time.time()
     cfgs = cfgs.get("args", {})
-    RUN_ASYNC = True
-    USE_GOOGLE_API = True
+    RUN_ASYNC = cfgs.get("RUN_ASYNC", False)
+    USE_GOOGLE_API = cfgs.get("USE_GOOGLE_API", False)
 
     main()
 

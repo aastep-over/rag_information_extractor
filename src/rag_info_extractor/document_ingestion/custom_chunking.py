@@ -1,7 +1,6 @@
 # Python native
 import asyncio
 
-# Logging
 import logging
 import re
 from collections import defaultdict

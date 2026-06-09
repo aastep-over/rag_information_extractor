@@ -13,7 +13,6 @@ args:
 
 
 
-
   EMBEDDING_MODEL_NAME: "intfloat/multilingual-e5-large-instruct"   # Loaded from .env for path
   RERANKER_MODEL: "BAAI/bge-reranker-v2-m3"                         # Loaded from .env for path
   PRUNER_MODEL: "naver/xprovence-reranker-bgem3-v1"                 # Loaded from .env for path
@@ -29,5 +28,5 @@ args:
   PDF_LOADER: "pymupdf" # ("pymupdf", "pypdf")
 
   RAG_PIPELINE: ["retrieve", "cross_encode_rerank", "generate"]
-  RUN_ASYNC: true
-  USE_GOOGLE_API: false
+  RUN_ASYNC: false
+  USE_GOOGLE_API: True

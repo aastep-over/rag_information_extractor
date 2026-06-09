@@ -15,18 +15,14 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field
-from transformers import AutoTokenizer
 
 # Relative Modules
 from rag_info_extractor.document_ingestion.custom_chunking import custom_chunking
-from rag_info_extractor.document_ingestion.fixed_size_chunking import (
-    fixed_size_chunking_async,
-)
-from rag_info_extractor.document_ingestion.semantic_chunking import (
-    semantic_chunking_async,
-)
+from rag_info_extractor.document_ingestion.fixed_size_chunking import fixed_size_chunking_async
+from rag_info_extractor.document_ingestion.semantic_chunking import semantic_chunking_async
 from rag_info_extractor.utils.embedder import HFEmbedder
 from rag_info_extractor.utils.llm_connector import OllamaLLM
+from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 

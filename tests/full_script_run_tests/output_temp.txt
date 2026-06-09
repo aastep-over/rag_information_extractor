@@ -1,0 +1,131 @@
+## OUTPUT FOR: rag_pipeline_components.py 
+2026-06-09 13-36-08
+Async: False
+
+USER QUERY: Agli amministratori spetta il rimborso delle spese? Informazione richiesto per la società: 2KIND SRL
+
+Optimied Query: {"query":"rimborso spese amministratori","azienda":"2kind srl"}
+
+LLM ANSWER: Agli amministratori spetta il rimborso delle spese sostenute in ragione del loro ufficio.
+
+Latency: {'analyze_query': '13.828 s', 'retrieve': '0.481 s', 'pruning': '0.00 s', 'generate': '13.254 s', 're_ranking': '5.151 s', 'faster_retrieve_and_rerank': '0.00 s', 'overall': '32.721 s'}
+
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+RETRIEVER DOCs...
+
+Retrieved doc ids: {'parents': [], 'children': [16, 1, 10, 20, 5, 19, 13, 14]}
+
+VECTOR STORE chunks: 
+
+-------------------------------------------------- CHUNK 0 --------------------------------------------------
+Allegato "B" dell'atto a Racc.2963
+S T A T U T O
+DENOMINAZIONE - SEDE - DURATA - OGGETTO
+
+
+-------------------------------------------------- CHUNK 1 --------------------------------------------------
+Art.7. - La società ha la facoltà di raccogliere presso i soci, nel rispetto
+delle leggi e dei regolamenti vigenti, i fondi necessari per il conseguimento
+dell'oggetto sociale secondo modalità che non configurino raccolta di
+risparmio tra il pubblico. Gli eventuali finanziamenti saranno fruttiferi o
+infruttiferi di interessi secondo quanto verrà deciso dai soci. I finanziamenti,
+con diritto alla restituzione delle somme versate, non potranno che essere
+volontari e comunque dovranno avvenire nel rispetto delle disposizioni
+contenute nelle leggi e nei regolamenti vigenti. Per il rimborso dei
+finanziamenti effettuati dai soci si applica l'articolo 2467 cod civ.
+ASSEMBLEA-DECISIONI DEI SOCI
+
+
+-------------------------------------------------- CHUNK 2 --------------------------------------------------
+Art.12.- La società può essere amministrata, alternativamente, su
+decisione dei soci:
+a)  da un Amministratore Unico;
+b) da due Coamministratori  con facoltà di agire disgiuntamente o
+congiuntamente con le competenze che sono determinate in occasione della
+nomina da parte dei soci;
+c) da un Consiglio di Amministrazione, composto da tre a cinque membri.
+ Gli Amministratori possono essere anche non soci, restano in carica per il
+periodo fissato dai soci all'atto della nomina, ovvero a tempo indeterminato,
+salvo rinuncia, revoca od altra causa di cessazione. Essi sono rieleggibili e
+------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------possono nominare procuratori per singoli atti o categorie di atti.
+CONSIGLIO DI AMMINISTRAZIONE
+
+
+-------------------------------------------------- CHUNK 3 --------------------------------------------------
+Art.15. -  Per la validità delle deliberazioni del consiglio è necessaria la
+presenza ed il voto favorevole della maggioranza degli amministratori in
+carica.
+
+
+-------------------------------------------------- CHUNK 4 --------------------------------------------------
+Art.16. - Il consiglio di amministrazione può delegare le proprie
+attribuzioni ad un o più dei suoi membri determinandone all'atto della
+nomina i poteri con le limitazioni di cui all'articolo 2381 c.c.
+POTERI DEGLI AMMINISTRATORI
+
+
+-------------------------------------------------- CHUNK 5 --------------------------------------------------
+Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese
+sostenute in ragione del loro ufficio, un compenso eventuale determinato dai
+soci.
+
+
+-------------------------------------------------- CHUNK 6 --------------------------------------------------
+Art.20.- Gli amministratori non possono assumere la qualità di soci
+illimitatamente responsabili in società concorrenti, né esercitare un'attività
+concorrente per conto proprio o di terzi, né essere amministratori o direttori
+generali in una società concorrente, salvo autorizzazione dell'assemblea.
+L'amministratore che non osservi il presente divieto può essere revocato  e
+risponde dei danni.
+ ORGANO DI CONTROLLO
+
+
+-------------------------------------------------- CHUNK 7 --------------------------------------------------
+Art.21.- I soci con apposita decisione nominano un organo di controllo in
+persona di un Sindaco Unico o di un Revisore legale dei conti ai sensi
+dell'art.2477 c.c., ai quali competono il controllo di gestione e il controllo
+legale dei conti.
+ Il compenso annuale del Sindaco Unico ovvero del Revisore legale è
+determinato in conformità con le tariffe professionali in vigore al momento
+della nomina.
+ La nomina dell'organo di controllo è obbligatoria nei casi previsti dalla
+legge.
+ESERCIZI SOCIALI BILANCIO E UTILI
+
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+DOC STORE chunks: 
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+RE-RANKED DOCs...
+
+Re-Ranked doc ids: {'parents': [19, 12], 'children': []}
+
+VECTOR STORE chunks: 
+----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+DOC STORE chunks: 
+
+-------------------------------------------------- CHUNK 0 --------------------------------------------------
+Art.19.– Agli Amministratori spetta, oltre al rimborso delle spese
+sostenute in ragione del loro ufficio, un compenso eventuale determinato dai
+soci.
+
+
+-------------------------------------------------- CHUNK 1 --------------------------------------------------
+Art.12.- La società può essere amministrata, alternativamente, su
+decisione dei soci:
+a)  da un Amministratore Unico;
+b) da due Coamministratori  con facoltà di agire disgiuntamente o
+congiuntamente con le competenze che sono determinate in occasione della
+nomina da parte dei soci;
+c) da un Consiglio di Amministrazione, composto da tre a cinque membri.
+ Gli Amministratori possono essere anche non soci, restano in carica per il
+periodo fissato dai soci all'atto della nomina, ovvero a tempo indeterminato,
+salvo rinuncia, revoca od altra causa di cessazione. Essi sono rieleggibili e
+------------------------------ THIS IS A CUSTOM END OF PAGE ------------------------------possono nominare procuratori per singoli atti o categorie di atti.
+CONSIGLIO DI AMMINISTRAZIONE
+

@@ -167,9 +167,7 @@ def return_keys_description_schema(schema: BaseModel) -> str:
 # Load all the schemas of info to be extracted from ./schemas
 def load_classes_from_path(
     path: str,
-    files_to_exclude: List[
-        str
-    ] = [],  # "bilanci_e_utili.py", "compenso_degli_amministratori.py", "info_generali.py"
+    files_to_exclude: List[str] = [],  # "bilanci_e_utili.py", "compenso_degli_amministratori.py", "info_generali.py"
 ) -> Dict[str, Type]:
     """
     Load all .py files in `path` (non-recursive) and return classes defined in them.

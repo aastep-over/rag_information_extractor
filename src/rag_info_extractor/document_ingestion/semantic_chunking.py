@@ -2,16 +2,12 @@ import asyncio
 
 # logging relative
 import logging
-import os
 
 # Python native
-from pathlib import Path
 from typing import Dict, List, Optional
 
 from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_huggingface import HuggingFaceEmbeddings
-from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
